@@ -7,6 +7,7 @@ using QuadGK
 using BandedMatrices
 import ForwardDiff
 import JSON
+using ArgParse
 
 const μ₀ = 4e-7*π
 
@@ -21,5 +22,7 @@ export Jt_R, JB, Ip
 
 include("diffuse.jl")
 export diffuse, steady_state, define_T, define_Y
+
+include("app.jl")
 
 end
