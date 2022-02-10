@@ -13,7 +13,7 @@ using Plots
     η = η_imas(transp_0)
 
     # Diffuse for 1.0 s
-    QI = diffuse(QI_0, η, 1.0, 10000, Np=1000, Vedge=0.0)
+    QI = diffuse(QI_0, η, 1.0, 10000, Np=1000, Vedge=0.0, debug=true)
 
     # Compare to TRANSP data at 4.0 s
     file_1 = joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "ods_163303Z26-4000.json")

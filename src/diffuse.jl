@@ -184,9 +184,9 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
         Np === nothing && (Np = Int(floor(Nt^0.75)))
         mod(Nt, Np) == 0 ? Ncol = Nt÷Np + 2 : Nt÷Np + 3
 
-        p = plot(legend=:best, color_palette=palette(:plasma, Ncol))
-        plot!(ρ, QI.JtoR.(ρ),marker=:circle,color=:black,label="Real initial <Jt/R>")
-        plot!(ρ, Jt_R(QI), label="t=$(0.0)",linewidth=2)
+        p = Plots.plot(legend=:best, color_palette=Plots.palette(:plasma, Ncol))
+        Plots.plot!(ρ, QI.JtoR.(ρ),marker=:circle,color=:black,label="Real initial <Jt/R>")
+        Plots.plot!(ρ, Jt_R(QI), label="t=$(0.0)",linewidth=2)
     end
 
     ι = deepcopy(QI.ι)
@@ -228,7 +228,7 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
         ι = FE_rep(ρ, c)
         
         if debug && (mod(n, Np) == 0)
-            plot!(ρ, Jt_R(QI, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
+            Plots.plot!(ρ, Jt_R(QI, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
         end
         
     end
@@ -236,7 +236,7 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     JtoR = Jt_R(QI, ι=ι)
 
     if debug 
-        mod(Nt, Np) != 0 && plot!(ρ, Jt_R(ρ, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
+        mod(Nt, Np) != 0 && Plots.plot!(ρ, Jt_R(ρ, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
         display(p)
     end
 
