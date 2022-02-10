@@ -1,6 +1,4 @@
-function Jt_R(QI::QED_state; ι=nothing)
-    ι === nothing && (ι = QI.ι)
-
+function Jt_R(QI::QED_state; ι=QI.ι)
     χ(x) = x * ι(x) * QI.fsa_∇ρ²_R²(x)
     dχ(x) = ForwardDiff.derivative(χ, x)
 
@@ -16,8 +14,7 @@ function Jt_R(QI::QED_state; ι=nothing)
     return QI.B₀ * QI.dΡ_dρ^2 * (dχ.(ρ) + ι.(ρ) .* QI.fsa_∇ρ²_R².(ρ) .* γ) / μ₀
 end
 
-function JB(QI::QED_state; ι=nothing)
-    ι === nothing && (ι = QI.ι)
+function JB(QI::QED_state; ι=QI.ι)
     ρ = QI.ρ
     fsa_JB = QI.F.(ρ) .* Jt_R(QI, ι=ι) 
     return fsa_JB .- D.(Ref(QI.F), ρ) .* QI.dΦ_dρ.(ρ) .* QI.fsa_∇ρ²_R².(ρ) .* ι.(ρ) ./ (2π * μ₀)
