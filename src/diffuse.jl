@@ -180,15 +180,6 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
         A[end, end] = 1.0
     end
 
-    if debug
-        Np === nothing && (Np = Int(floor(Nt^0.75)))
-        mod(Nt, Np) == 0 ? Ncol = Nt÷Np + 2 : Nt÷Np + 3
-
-        p = Plots.plot(legend=:best, color_palette=Plots.palette(:plasma, Ncol))
-        Plots.plot!(ρ, QI.JtoR.(ρ),marker=:circle,color=:black,label="Real initial <Jt/R>")
-        Plots.plot!(ρ, Jt_R(QI), label="t=$(0.0)",linewidth=2)
-    end
-
     ι = deepcopy(QI.ι)
 
     Sni = define_Sni(QI, η)
@@ -226,19 +217,10 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
         
         c = A\b
         ι = FE_rep(ρ, c)
-        
-        if debug && (mod(n, Np) == 0)
-            Plots.plot!(ρ, Jt_R(QI, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
-        end
-        
+              
     end
 
     JtoR = Jt_R(QI, ι=ι)
-
-    if debug 
-        mod(Nt, Np) != 0 && Plots.plot!(ρ, Jt_R(ρ, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
-        display(p)
-    end
 
     return QED_state(QI, ι, JtoR)
 

@@ -2,7 +2,6 @@ __precompile__()
 
 module QED
 
-import Plots
 using QuadGK
 using BandedMatrices
 import ForwardDiff
