@@ -15,7 +15,7 @@ struct QED_state{T <: Real}
 end
 
 function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing,
-                   x = range(0, 1, length=1001), ε = 1e-3)
+                   x = 1.0 .- (1.0 .- range(0, 1, length=length(ρ))).^2, ε = 1e-3)
 
     dΦ_dρ(x) = 2π* B₀ * dΡ_dρ^2 * x
     dΨ_dρ(x) = ι(x) * dΦ_dρ(x)
