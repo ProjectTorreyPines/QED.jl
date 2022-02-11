@@ -193,6 +193,9 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
 
     Sni = define_Sni(QI, η)
 
+    # invert A matrix only once, outside of time stepping loop
+    invA = inv(A)
+
     for n in 1:Nt
     
         if θimp != 1.0
@@ -224,7 +227,7 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
             end
         end
         
-        c = A\b
+        c = invA * b
         ι = FE_rep(ρ, c)
         
         if debug && (mod(n, Np) == 0)

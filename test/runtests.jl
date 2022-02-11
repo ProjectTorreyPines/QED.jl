@@ -1,7 +1,8 @@
+using Revise
 using QED
+import QED: JSON
 using Test
 using Plots
-import JSON
 
 μ₀ = 4e-7 * π
 
