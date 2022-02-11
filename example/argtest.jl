@@ -1,5 +1,6 @@
 import Pkg
-Pkg.activate("..")
+filename = joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "ods_small.json")
+Pkg.activate(dirname(dirname(abspath(@__FILE__))))
 using ArgParse
 using QED
 using JSON
@@ -40,6 +41,8 @@ end
 
 function main()
 
+    println("QED - Q Evolution by Diffusion")
+
     args = parse_commandline()
     input = JSON.parsefile(args["input_file"])
     timeslice = args["timeslice"]
@@ -47,24 +50,43 @@ function main()
     QI = from_imas(input, timeslice)
     η = η_imas(input, timeslice)
 
+    function printbc()
+        if args["Ip"] !== nothing
+            return "Ip = $(args["Ip"]) A"
+        elseif args["Vedge"] !== nothing
+            return "Vedge = $(args["Vedge"]) V"
+        else
+            return "constant plasma current"
+        end
+    end
+
     if args["tmax"] === Inf
+        println("  Running in steady-state with " * printbc())
         QO = steady_state(QI, η, Vedge = args["Vedge"], Ip = args["Ip"])
     else
+        println("  Running for $(args["tmax"]) s in $(args["timesteps"]) time steps with " * printbc())
         QO = diffuse(QI, η, args["tmax"], args["timesteps"],
                      Vedge = args["Vedge"], Ip = args["Ip"])
     end
     
+    println("  Diffusion complete")
+
     # Write ι and <Jt/R> to the output file
     output = deepcopy(input)
     eqt = output["equilibrium"]["time_slice"][timeslice]
     ρ = eqt["profiles_1d"]["rho_tor"] / eqt["profiles_1d"]["rho_tor"][end]
     eqt["profiles_1d"]["q"] = 1.0 ./ QO.ι.(ρ)
     eqt["profiles_1d"]["j_tor"] = QO.JtoR.(ρ) ./ eqt["profiles_1d"]["gm9"]
+    
+    println("  Outputting results to $(args["output_file"])")
+    
     open(args["output_file"], "w") do f
         JSON.print(f, output, 1)
     end
 
-    return 0 # if things finished successfully
+    println("Exiting QED")
+    
+    return 0
 end
 
 main()
