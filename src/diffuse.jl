@@ -183,10 +183,9 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     if debug
         Np === nothing && (Np = Int(floor(Nt^0.75)))
         mod(Nt, Np) == 0 ? Ncol = Nt÷Np + 2 : Nt÷Np + 3
-
-        p = Plots.plot(legend=:best, color_palette=Plots.palette(:plasma, Ncol))
-        Plots.plot!(ρ, QI.JtoR.(ρ),marker=:circle,color=:black,label="Real initial <Jt/R>")
-        Plots.plot!(ρ, Jt_R(QI), label="t=$(0.0)",linewidth=2)
+        ιs = Vector{FE_rep}(undef, Ncol-2)
+        times = zeros(Ncol-2)
+        np = 0
     end
 
     ι = deepcopy(QI.ι)
@@ -230,18 +229,17 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
         c = invA * b
         ι = FE_rep(ρ, c)
         
-        if debug && (mod(n, Np) == 0)
-            Plots.plot!(ρ, Jt_R(QI, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
+        if debug && ((mod(n, Np) == 0) || (n == Nt))
+            np += 1
+            ιs[np] = deepcopy(ι)
+            times[np] = round(Δt*n, digits=3)
         end
         
     end
 
     JtoR = Jt_R(QI, ι=ι)
 
-    if debug 
-        mod(Nt, Np) != 0 && Plots.plot!(ρ, Jt_R(ρ, ι=ι), linewidth=2, label="t=$(round(Δt*n,digits=3))")
-        display(p)
-    end
+    debug && plot_JtoR_profiles(QI, ιs, times, Ncol)
 
     return QED_state(QI, ι, JtoR)
 
