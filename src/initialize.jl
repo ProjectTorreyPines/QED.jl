@@ -96,12 +96,18 @@ end
 
 η_imas(filename::String, timeslice=1) = η_imas(JSON.parsefile(filename), timeslice)
 
-function η_imas(data::Dict, timeslice=1)
+function η_imas(data::Dict, timeslice=1; use_log=true)
     prof1d = data["core_profiles"]["profiles_1d"][timeslice]
     rho = prof1d["grid"]["rho_tor_norm"]
     η = 1.0 ./ prof1d["conductivity_parallel"]
     rtype = typeof(η[1])
-    return FE(rtype.(rho), η)
+    if use_log
+        log_η = FE(rtype.(rho), log.(η))
+        return x -> exp(log_η(x))
+    else
+        return FE(rtype.(rho), η)
+    end
+
 end
 
 function η_mock(; T0 = 3000.0, Tp = 500.0, Ts = 100.0)
