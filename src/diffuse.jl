@@ -182,7 +182,7 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
 
     if debug
         Np === nothing && (Np = Int(floor(Nt^0.75)))
-        mod(Nt, Np) == 0 ? Ncol = Nt÷Np + 2 : Nt÷Np + 3
+        mod(Nt, Np) == 0 ? Ncol = Nt÷Np + 2 : Ncol = Nt÷Np + 3
         ιs = Vector{FE_rep}(undef, Ncol-2)
         times = zeros(Ncol-2)
         np = 0
