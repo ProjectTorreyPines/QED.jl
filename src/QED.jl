@@ -7,6 +7,7 @@ using BandedMatrices
 import ForwardDiff
 import JSON
 using ArgParse
+import Optim
 
 using Requires
 
@@ -17,11 +18,10 @@ end
 const μ₀ = 4e-7*π
 
 include("hermite.jl")
-export FE_rep, FE, D, I
+export fit_derivative, FE_rep, FE, D, D2, I, resample, add_point!, delete_point!
 
 include("initialize.jl")
-export QED_state, from_imas, η_imas, η_mock
-
+export QED_state, from_imas, η_imas, η_mock, resample, optknt4
 include("current.jl")
 export Jt_R, JB, Ip
 

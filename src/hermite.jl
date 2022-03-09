@@ -166,6 +166,31 @@ function I(Y::FE_rep, x::Real)
     return yint
 end
 
+function add_point!(Y::FE_rep, x::Real, y::Real, dydx::Real)
+    i = searchsortedfirst(Y.x, x)
+
+    @assert x != Y.x[i] "$(x) already contained in Y.x at index $(i)"
+
+    insert!(Y.x, i, x)
+    insert!(Y.coeffs, 2i-1, y)
+    insert!(Y.coeffs, 2i-1, dydx)
+    return Y
+end
+
+function delete_point!(Y::FE_rep, i::Integer)
+    deleteat!(Y.x, i)
+    deleteat!(Y.coeffs, 2i-1)
+    deleteat!(Y.coeffs, 2i-1)
+    return Y
+end
+
+function resample(Y::FE_rep, x::AbstractVector)
+    C = zeros(2*length(x))
+    C[2:2:end] .= Y.(x)
+    C[1:2:end] .= D.(Ref(Y), x)
+    return FE_rep(x, C)
+end
+
 #==============================================================
 Define inner products
 ===============================================================#
