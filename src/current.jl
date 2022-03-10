@@ -1,8 +1,7 @@
-function Jt_R(QI::QED_state; ι=QI.ι)
+function Jt_R(QI::QED_state; ι=QI.ι, ρ=QI.ρ)
     χ(x) = x * ι(x) * QI.fsa_∇ρ²_R²(x)
     dχ(x) = ForwardDiff.derivative(χ, x)
 
-    ρ = QI.ρ
     γ = zero(ρ)
     for k in 1:length(ρ)
         if ρ[k] == 0
