@@ -2,7 +2,7 @@ __precompile__()
 
 module QED
 
-using QuadGK
+using FiniteElementHermite
 using BandedMatrices
 import ForwardDiff
 import JSON
@@ -15,9 +15,6 @@ function __init__()
 end
 
 const μ₀ = 4e-7*π
-
-include("hermite.jl")
-export FE_rep, FE, D, I
 
 include("initialize.jl")
 export QED_state, from_imas, η_imas, η_mock
