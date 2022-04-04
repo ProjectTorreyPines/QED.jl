@@ -55,6 +55,8 @@ end
     QI_0 = from_imas(transp_0)
     η = η_imas(transp_0)
 
+    ρ = deepcopy(QI_0.ρ)
+
     #Compute matrices
     T = define_T(QI_0)
     Y = define_Y(QI_0, η)
@@ -69,8 +71,6 @@ end
     transp_1 = JSON.parsefile(file_1)
     QI_1 = from_imas(transp_1)
 
-    ρ = QI_0.ρ
-
     p = plot(title="Safety Factor", legend=:bottomleft)
     plot!(ρ, -transp_0["equilibrium"]["time_slice"][1]["profiles_1d"]["q"], marker=:circle, label="TRANSP start",color=:darkred)
     plot!(ρ, -transp_1["equilibrium"]["time_slice"][1]["profiles_1d"]["q"], marker=:circle, label="TRANSP end",color=:tomato)
@@ -82,9 +82,9 @@ end
     p = plot(title="<Jt/R>",legend=:bottomleft)
     plot!(ρ, QI_0.JtoR.(ρ), marker=:circle, label="TRANSP start",color=:darkred)
     plot!(ρ, QI_1.JtoR.(ρ), marker=:circle, label="TRANSP end",color=:tomato)
-    plot!(ρ, Jt_R(QI_0),label="QED start",linewidth=3,color=:blue)
-    plot!(ρ, Jt_R(QI),label="QED end",linewidth=3,color=:deepskyblue)
-    plot!(ρ, Jt_R(QI_2MA),label="QED 2 MA",linewidth=3,color=:cyan)
+    plot!(ρ, Jt_R(QI_0, ρ=ρ),label="QED start",linewidth=3,color=:blue)
+    plot!(ρ, Jt_R(QI, ρ=ρ),label="QED end",linewidth=3,color=:deepskyblue)
+    plot!(ρ, Jt_R(QI_2MA, ρ=ρ),label="QED 2 MA",linewidth=3,color=:cyan)
     display(p)
 
     @test QI_0.ι(1) ≈ QI.ι(1)
