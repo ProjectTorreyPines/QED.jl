@@ -19,7 +19,7 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
 
     dΦ_dρ(x) = 2π* B₀ * dΡ_dρ^2 * x
     dΨ_dρ(x) = ι(x) * dΦ_dρ(x)
-    
+
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
     # Then dχ/dρ = ξ
     # Solve for χ by integrating ξ, noting that χ=0 at ρ=0
@@ -48,7 +48,7 @@ end
 function QED_state(QI::QED_state, ι, JtoR)
     ι isa AbstractVector && (ι = FE(QI.ρ, ι))
     JtoR isa AbstractVector && (JtoR = FE(QI.ρ, JtoR))
-    
+
     dΨ_dρ(x) = ι(x) * QI.dΦ_dρ(x)
     return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.dΦ_dρ, dΨ_dρ, QI.fsa_∇ρ²_R², QI.D_fsa_∇ρ²_R², QI.JBni)
 end
@@ -63,32 +63,51 @@ from_imas(filename::String, timeslice=1) = from_imas(JSON.parsefile(filename), t
 function from_imas(data::Dict, timeslice=1)
 
     eqt = data["equilibrium"]["time_slice"][timeslice]
-
-    dΡ_dρ = eqt["profiles_1d"]["rho_tor"][end]
-    
-    ρ = eqt["profiles_1d"]["rho_tor"]/dΡ_dρ
-
-    rtype = typeof(ρ[1])
-    
+    rho_tor = eqt["profiles_1d"]["rho_tor"]
     B₀ = data["equilibrium"]["vacuum_toroidal_field"]["b0"][timeslice]
+    gm1 = eqt["profiles_1d"]["gm1"]
+    f = eqt["profiles_1d"]["f"]
+    dvolume_drho_tor = eqt["profiles_1d"]["dvolume_drho_tor"]
+    q = eqt["profiles_1d"]["q"]
+    j_tor = eqt["profiles_1d"]["j_tor"]
+    gm9 = eqt["profiles_1d"]["gm9"]
 
-    fsa_R⁻² = FE(ρ, rtype.(eqt["profiles_1d"]["gm1"]))
-    F = FE(ρ, rtype.(eqt["profiles_1d"]["f"]))
-
-    # Require dV_dρ=0 on-axis
-    tmp = dΡ_dρ .* eqt["profiles_1d"]["dvolume_drho_tor"]
-    tmp[1] = 0.0 
-    dV_dρ = FE(ρ, tmp)
-
-    ι = FE(ρ, 1.0./eqt["profiles_1d"]["q"])
-    JtoR = FE(ρ, eqt["profiles_1d"]["j_tor"] .* eqt["profiles_1d"]["gm9"])
-
-    JBni = nothing
+    ρ_j_non_inductive = nothing
     try
         prof1d = data["core_profiles"]["profiles_1d"][timeslice]
-        JBni = FE(rtype.(prof1d["grid"]["rho_tor_norm"]), prof1d["j_non_inductive"] .* B₀)
+        ρ_j_non_inductive = (prof1d["grid"]["rho_tor_norm"], prof1d["j_non_inductive"])
     catch e
         !(e isa KeyError) && rethrow(e)
+    end
+
+    return initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
+end
+
+function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9;
+                    ρ_j_non_inductive=nothing)
+
+    dΡ_dρ = rho_tor[end]
+
+    ρ = rho_tor/dΡ_dρ
+
+    rtype = typeof(ρ[1])
+
+    fsa_R⁻² = FE(ρ, rtype.(gm1))
+    F = FE(ρ, rtype.(f))
+
+    # Require dV_dρ=0 on-axis
+    tmp = dΡ_dρ .* dvolume_drho_tor
+    tmp[1] = 0.0
+    dV_dρ = FE(ρ, tmp)
+
+    ι = FE(ρ, 1.0./q)
+    JtoR = FE(ρ, j_tor .* gm9)
+
+    if ρ_j_non_inductive === nothing
+        JBni = nothing
+    else
+        rho_tor_norm, j_non_inductive = ρ_j_non_inductive
+        JBni = FE(rtype.(rho_tor_norm), j_non_inductive .* B₀)
     end
 
     return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, JBni=JBni)
