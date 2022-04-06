@@ -17,7 +17,7 @@ end
 const μ₀ = 4e-7*π
 
 include("initialize.jl")
-export QED_state, from_imas, η_imas, η_mock, initialize
+export QED_state, from_imas, η_imas, η_FE, η_mock, initialize
 
 include("current.jl")
 export Jt_R, JB, Ip
