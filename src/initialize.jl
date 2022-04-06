@@ -115,7 +115,14 @@ end
 
 η_imas(filename::String, timeslice=1) = η_imas(JSON.parsefile(filename), timeslice)
 
-function η_imas(rho, η; use_log=true)
+function η_imas(data::Dict, timeslice=1; use_log=true)
+    prof1d = data["core_profiles"]["profiles_1d"][timeslice]
+    rho = prof1d["grid"]["rho_tor_norm"]
+    η = 1.0 ./ prof1d["conductivity_parallel"]
+    η_FE(rho, η; use_log)
+end
+
+function η_FE(rho, η; use_log=true)
     rtype = typeof(η[1])
     if use_log
         log_η = FE(rtype.(rho), log.(η))
@@ -125,12 +132,6 @@ function η_imas(rho, η; use_log=true)
     end
 end
 
-function η_imas(data::Dict, timeslice=1; use_log=true)
-    prof1d = data["core_profiles"]["profiles_1d"][timeslice]
-    rho = prof1d["grid"]["rho_tor_norm"]
-    η = 1.0 ./ prof1d["conductivity_parallel"]
-    η_imas(rho, η; use_log)
-end
 
 function η_mock(; T0 = 3000.0, Tp = 500.0, Ts = 100.0)
     # Spitzer resistivity in Ωm from NRL (assuming Z=2 and lnΛ=15)
