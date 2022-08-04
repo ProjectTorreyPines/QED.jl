@@ -3,7 +3,7 @@
 function define_T(QI::QED_state)
 
     ρ = QI.ρ
-    dΦ_dρ = QI.dΦ_dρ
+    DΦ(x) = dΦ_dρ(QI, x)
     
     N = length(ρ)
 
@@ -13,26 +13,26 @@ function define_T(QI::QED_state)
         # First odd with all nearest neighbors
         Ts[2m-1, 1] = 0.0
         if m > 1
-            Ts[2m-1, 2] = inner_product(dΦ_dρ, νo, m, νo, m-1, ρ)
-            Ts[2m-1, 3] = inner_product(dΦ_dρ, νo, m, νe, m-1, ρ)
+            Ts[2m-1, 2] = inner_product(DΦ, νo, m, νo, m-1, ρ)
+            Ts[2m-1, 3] = inner_product(DΦ, νo, m, νe, m-1, ρ)
         end
-        Ts[2m-1, 4] = inner_product(dΦ_dρ, νo, m, νo, m, ρ)
-        Ts[2m-1, 5] = inner_product(dΦ_dρ, νo, m, νe, m, ρ)
+        Ts[2m-1, 4] = inner_product(DΦ, νo, m, νo, m, ρ)
+        Ts[2m-1, 5] = inner_product(DΦ, νo, m, νe, m, ρ)
         if m < N
-            Ts[2m-1, 6] = inner_product(dΦ_dρ, νo, m, νo, m+1, ρ)
-            Ts[2m-1, 7] = inner_product(dΦ_dρ, νo, m, νe, m+1, ρ)
+            Ts[2m-1, 6] = inner_product(DΦ, νo, m, νo, m+1, ρ)
+            Ts[2m-1, 7] = inner_product(DΦ, νo, m, νe, m+1, ρ)
         end
 
         # Then even with all nearest neighbors
         if m > 1
-            Ts[2m, 1] = inner_product(dΦ_dρ, νe, m, νo, m-1, ρ)
-            Ts[2m, 2] = inner_product(dΦ_dρ, νe, m, νe, m-1, ρ)
+            Ts[2m, 1] = inner_product(DΦ, νe, m, νo, m-1, ρ)
+            Ts[2m, 2] = inner_product(DΦ, νe, m, νe, m-1, ρ)
         end
-        Ts[2m, 3] = inner_product(dΦ_dρ, νe, m, νo, m, ρ)
-        Ts[2m, 4] = inner_product(dΦ_dρ, νe, m, νe, m, ρ)
+        Ts[2m, 3] = inner_product(DΦ, νe, m, νo, m, ρ)
+        Ts[2m, 4] = inner_product(DΦ, νe, m, νe, m, ρ)
         if m < N
-            Ts[2m, 5] = inner_product(dΦ_dρ, νe, m, νo, m+1, ρ)
-            Ts[2m, 6] = inner_product(dΦ_dρ, νe, m, νe, m+1, ρ)
+            Ts[2m, 5] = inner_product(DΦ, νe, m, νo, m+1, ρ)
+            Ts[2m, 6] = inner_product(DΦ, νe, m, νe, m+1, ρ)
         end
         Ts[2m, 7] = 0.0
     end
@@ -43,7 +43,7 @@ function define_T(QI::QED_state)
 end
 
 function αβ(x::Real, QI::QED_state, η)
-    return η(x) * QI.dΦ_dρ(x) * QI.fsa_∇ρ²_R²(x) / (μ₀ * QI.fsa_R⁻²(x))
+    return η(x) * dΦ_dρ(QI, x) * fsa_∇ρ²_R²(QI, x) / (μ₀ * QI.fsa_R⁻²(x))
 end
 
 function αdβ_dρ(x::Real, QI::QED_state, η)
@@ -53,7 +53,7 @@ function αdβ_dρ(x::Real, QI::QED_state, η)
     else
         γ = 1.0
     end
-    abp = (1.0 + γ) * QI.fsa_∇ρ²_R²(x) + x * QI.D_fsa_∇ρ²_R²(x)
+    abp = (1.0 + γ) * fsa_∇ρ²_R²(QI, x) + x * D_fsa_∇ρ²_R²(QI, x)
     return 2π * QI.B₀ * QI.dΡ_dρ^2 * η(x) * abp / (μ₀ * QI.fsa_R⁻²(x))
 end
 

@@ -1,5 +1,5 @@
-struct QED_state{T <: Real}
-    ρ::AbstractVector{T}
+struct QED_state{U <: AbstractVector{<:Real}, T <: Real}
+    ρ::U
     dΡ_dρ::T
     B₀::T
     fsa_R⁻²::FE_rep{T}
@@ -7,55 +7,54 @@ struct QED_state{T <: Real}
     dV_dρ::FE_rep{T}
     ι::FE_rep{T}
     JtoR::FE_rep{T}
-    dΦ_dρ
-    dΨ_dρ
-    fsa_∇ρ²_R²
-    D_fsa_∇ρ²_R²
-    JBni
+    χ::FE_rep{T}
+    JBni::Union{Nothing,FE_rep{T}}
+    _ι_eq::FE_rep{T}
+end
+
+dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
+function fsa_∇ρ²_R²(QI::QED_state, r::Real, ε = 1e-3)
+    if r == 0
+        # Linearly extrapolate to axis
+        return 2*fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε)
+    else
+        return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
+    end
+end
+function D_fsa_∇ρ²_R²(QI::QED_state, x::Real)
+    return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
 end
 
 function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing,
-                   x = 1.0 .- (1.0 .- range(0, 1, length=length(ρ))).^2, ε = 1e-3)
-
-    dΦ_dρ(x) = 2π* B₀ * dΡ_dρ^2 * x
-    dΨ_dρ(x) = ι(x) * dΦ_dρ(x)
+                   x = 1.0 .- (1.0 .- range(0, 1, length=length(ρ))).^2)
 
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
+    # where dΨ_dρ = ι * dΦ_dρ
     # Then dχ/dρ = ξ
     # Solve for χ by integrating ξ, noting that χ=0 at ρ=0
-
     ξ = FE(x, 2π * μ₀ * dV_dρ.(x) .* JtoR.(x))
-
     C = zeros(2*length(x))
     C[2:2:end] .= I.(Ref(ξ), x) # value of χ is integral of ξ
     C[1:2:end] .= ξ.(x)         # derivative of χ is value of ξ
     χ = FE_rep(x, C)
 
-    function fsa_∇ρ²_R²(r::Real)
-        if r == 0
-            # Linearly extrapolate to axis
-            return 2*fsa_∇ρ²_R²(ε) - fsa_∇ρ²_R²(2ε)
-        else
-            return χ(r) / (dV_dρ(r) * dΨ_dρ(r))
-        end
-    end
-
-    D_fsa_∇ρ²_R²(x) = ForwardDiff.derivative(fsa_∇ρ²_R², x)
-
-    return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, dΦ_dρ, dΨ_dρ, fsa_∇ρ²_R², D_fsa_∇ρ²_R², JBni)
+    return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι)
 end
 
 function QED_state(QI::QED_state, ι, JtoR)
     ι isa AbstractVector && (ι = FE(QI.ρ, ι))
     JtoR isa AbstractVector && (JtoR = FE(QI.ρ, JtoR))
 
-    dΨ_dρ(x) = ι(x) * QI.dΦ_dρ(x)
-    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.dΦ_dρ, dΨ_dρ, QI.fsa_∇ρ²_R², QI.D_fsa_∇ρ²_R², QI.JBni)
+    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.χ, QI.JBni, QI._ι_eq)
 end
 
 function QED_state(QI::QED_state;  JBni=nothing)
-    JBni isa AbstractVector && (JBni = FE(QI.ρ, JBni))
-    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.dΦ_dρ, QI.dΨ_dρ, QI.fsa_∇ρ²_R², QI.D_fsa_∇ρ²_R², JBni)
+    if JBni isa AbstractVector
+        JBni = FE(QI.ρ, JBni)
+    elseif JBni !== nothing
+        JBni = FE(QI.ρ, JBni.(QI.ρ))
+    end
+    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.χ, JBni, QI._ι_eq)
 end
 
 from_imas(filename::String, timeslice=1) = from_imas(JSON.parsefile(filename), timeslice)
@@ -131,7 +130,6 @@ function η_FE(rho, η; use_log=true)
         return FE(rtype.(rho), η)
     end
 end
-
 
 function η_mock(; T0 = 3000.0, Tp = 500.0, Ts = 100.0)
     # Spitzer resistivity in Ωm from NRL (assuming Z=2 and lnΛ=15)
