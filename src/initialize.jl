@@ -1,12 +1,12 @@
-struct QED_state{T <: Real}
+struct QED_state{T <: Real, S <: FE_rep{<:AbstractVector{<:Real}}}
     ρ::AbstractVector{T}
     dΡ_dρ::T
     B₀::T
-    fsa_R⁻²::FE_rep{T}
-    F::FE_rep{T}
-    dV_dρ::FE_rep{T}
-    ι::FE_rep{T}
-    JtoR::FE_rep{T}
+    fsa_R⁻²::S
+    F::S
+    dV_dρ::S
+    ι::S
+    JtoR::S
     dΦ_dρ
     dΨ_dρ
     fsa_∇ρ²_R²
