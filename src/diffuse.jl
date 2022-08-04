@@ -156,12 +156,16 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     Y === nothing && (Y = define_Y(QI, η))
 
     Δt = tmax / Nt
+    inv_Δt = Nt / tmax
+
+    θexp = 1.0 - θimp
+
     ρ = QI.ρ
 
-    A = T ./ Δt 
-    if θimp != 0
-        A -= θimp .* Y
-    end
+    # A = T / Δt - θimp * Y
+    A = deepcopy(T)
+    rmul!(A, inv_Δt)
+    (θimp != 0) && (A .-= θimp .* Y)
 
     # On-axis oundary conditions
     # ι' = 0
@@ -187,20 +191,31 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
         times = zeros(Ncol-2)
         np = 0
     end
-
-    ι = deepcopy(QI.ι)
-
     Sni = define_Sni(QI, η)
 
     # invert A matrix only once, outside of time stepping loop
+    # We could factor and do linear solve each time,
+    #   but this seems faster (because small matrix)
     invA = inv(A)
 
+    c = deepcopy(QI.ι.coeffs)
+    b = zero(c)
+    btmp = zero(c)
+
+    # We advance c, the coefficients of ι,
+    #   but we never actually need ι until the end (except for debugging)
     for n in 1:Nt
-        b = (T * ι.coeffs) ./ Δt
-        (θimp != 1.0) && (b .+= (1.0 - θimp) .* (Y * ι.coeffs))
+        mul!(b, T, c)
+        #b .= T * c
+        rmul!(b, inv_Δt)
+        if θexp != 0.0
+            mul!(btmp, Y, c)
+            rmul!(btmp, θexp)
+            b .+= btmp
+        end
 
         # Non-inductive source
-        Sni !== nothing && (b += Sni)
+        Sni !== nothing && (b .+= Sni)
 
         # On-axis boundary condition
         b[1] = 0.0
@@ -215,24 +230,24 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
             # Constant ι (i.e., current)
             if Ip === nothing
                 # Match initial current
-                b[end] = QI.ι(1.0)
+                b[end] = QI._ι_eq(1.0)
             else
                 # Match desired current
-                b[end] = Ip * μ₀ * (2π)^2 / (QI.dΦ_dρ(1.0) * QI.dV_dρ(1.0) * QI.fsa_∇ρ²_R²(1.0))
+                b[end] = Ip * μ₀ * (2π)^2 / (dΦ_dρ(QI, 1.0) * QI.dV_dρ(1.0) * fsa_∇ρ²_R²(QI, 1.0))
             end
         end
         
-        c = invA * b
-        ι = FE_rep(ρ, c)
+        mul!(c, invA, b)
         
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1
-            ιs[np] = deepcopy(ι)
+            ιs[np] = FE_rep(ρ, deepcopy(c))
             times[np] = round(Δt*n, digits=3)
         end
         
     end
 
+    ι = FE_rep(ρ, c)
     JtoR = Jt_R(QI, ι=ι)
 
     debug && plot_JtoR_profiles(QI, ιs, times, Ncol)

@@ -7,6 +7,7 @@ using BandedMatrices
 import ForwardDiff
 import JSON
 using ArgParse
+import LinearAlgebra: mul!, rmul!
 
 using Requires
 
