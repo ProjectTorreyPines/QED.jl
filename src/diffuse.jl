@@ -196,12 +196,8 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     invA = inv(A)
 
     for n in 1:Nt
-    
-        if θimp != 1.0
-            b = (T ./ Δt + (1.0 - θimp) .* Y) * ι.coeffs
-        else
-            b = (T  * ι.coeffs) ./ Δt
-        end
+        b = (T * ι.coeffs) ./ Δt
+        (θimp != 1.0) && (b .+= (1.0 - θimp) .* (Y * ι.coeffs))
 
         # Non-inductive source
         Sni !== nothing && (b += Sni)
