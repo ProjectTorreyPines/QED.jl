@@ -1,15 +1,15 @@
-struct QED_state{U <: AbstractVector{<:Real}, T <: Real}
+struct QED_state{U <: AbstractVector{<:Real}, T <: Real, S<: FE_rep}
     ρ::U
     dΡ_dρ::T
     B₀::T
-    fsa_R⁻²::FE_rep{T}
-    F::FE_rep{T}
-    dV_dρ::FE_rep{T}
-    ι::FE_rep{T}
-    JtoR::FE_rep{T}
-    χ::FE_rep{T}
-    JBni::Union{Nothing,FE_rep{T}}
-    _ι_eq::FE_rep{T}
+    fsa_R⁻²::S
+    F::S
+    dV_dρ::S
+    ι::S
+    JtoR::S
+    χ::S
+    JBni::Union{Nothing,S}
+    _ι_eq::S
 end
 
 dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
