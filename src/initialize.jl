@@ -1,4 +1,4 @@
-struct QED_state{U <: AbstractVector{<:Real}, T <: Real, S<: FE_rep}
+struct QED_state{U <: AbstractVector{<:Real}, T <: Real, S <: FE_rep}
     ρ::U
     dΡ_dρ::T
     B₀::T
@@ -12,17 +12,13 @@ struct QED_state{U <: AbstractVector{<:Real}, T <: Real, S<: FE_rep}
     _ι_eq::S
 end
 
-dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
-function fsa_∇ρ²_R²(QI::QED_state, r::Real, ε = 1e-3)
-    if r == 0
-        # Linearly extrapolate to axis
-        return 2*fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε)
-    else
-        return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
-    end
+@inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
+@inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε = 1e-3)
+    r == 0 && return 2*fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε) # Linearly extrapolate to axis
+    return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
 end
-function D_fsa_∇ρ²_R²(QI::QED_state, x::Real)
-    return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
+@inline function D_fsa_∇ρ²_R²(QI::QED_state, x::Real)
+   return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
 end
 
 function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing,

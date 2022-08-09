@@ -1,45 +1,43 @@
 # Matrix for the time-derivative term (without Δt)
 # T_mk = (dΦ_dρ * ν_m * ν_k)
-function define_T(QI::QED_state, order::Integer = 5)
+function define_T(QI::QED_state; order::Union{Nothing,Integer}=5)
+    DΦ = x -> dΦ_dρ(QI, x)
+    # Hermite cubics give septadiagonal matrix
+    T = BandedMatrix(Zeros(2length(QI.ρ), 2length(QI.ρ)), (3, 3))
+    define_T!(T, DΦ, QI.ρ, order)
+    return T
+end
 
-    ρ = QI.ρ
-    DΦ(x) = dΦ_dρ(QI, x)
-    
-    N = length(ρ)
+function define_T!(T::BandedMatrix, DΦ, ρ::AbstractVector{<:Real}, order::Union{Nothing,Integer})
+    Threads.@threads for m in eachindex(ρ)
+        Me = 2m
+        Mo = Me - 1
 
-    Ts = zeros(2N, 7) # Hermite cubics give septadiagonal matrix
-
-    Threads.@threads for m in 1:N
-        # First odd with all nearest neighbors
-        Ts[2m-1, 1] = 0.0
         if m > 1
-            Ts[2m-1, 2] = inner_product(DΦ, νo, m, νo, m-1, ρ, order)
-            Ts[2m-1, 3] = inner_product(DΦ, νo, m, νe, m-1, ρ, order)
-        end
-        Ts[2m-1, 4] = inner_product(DΦ, νo, m, νo, m, ρ, order)
-        Ts[2m-1, 5] = inner_product(DΦ, νo, m, νe, m, ρ, order)
-        if m < N
-            Ts[2m-1, 6] = inner_product(DΦ, νo, m, νo, m+1, ρ, order)
-            Ts[2m-1, 7] = inner_product(DΦ, νo, m, νe, m+1, ρ, order)
-        end
+            # T[Mo, Mo-3] = 0.0
+            T[Me, Me-3] = inner_product(DΦ, νe, m, νo, m-1, ρ, order)
 
-        # Then even with all nearest neighbors
-        if m > 1
-            Ts[2m, 1] = inner_product(DΦ, νe, m, νo, m-1, ρ, order)
-            Ts[2m, 2] = inner_product(DΦ, νe, m, νe, m-1, ρ, order)
+            T[Mo, Mo-2] = inner_product(DΦ, νo, m, νo, m-1, ρ, order)
+            T[Me, Me-2] = inner_product(DΦ, νe, m, νe, m-1, ρ, order)
+
+            T[Mo, Mo-1] = inner_product(DΦ, νo, m, νe, m-1, ρ, order)
         end
-        Ts[2m, 3] = inner_product(DΦ, νe, m, νo, m, ρ, order)
-        Ts[2m, 4] = inner_product(DΦ, νe, m, νe, m, ρ, order)
-        if m < N
-            Ts[2m, 5] = inner_product(DΦ, νe, m, νo, m+1, ρ, order)
-            Ts[2m, 6] = inner_product(DΦ, νe, m, νe, m+1, ρ, order)
+        T[Me, Me-1] = inner_product(DΦ, νe, m, νo, m, ρ, order)
+
+        T[Mo, Mo] = inner_product(DΦ, νo, m, νo, m, ρ, order)
+        T[Me, Me] = inner_product(DΦ, νe, m, νe, m, ρ, order)
+
+        T[Mo, Mo+1] = inner_product(DΦ, νo, m, νe, m, ρ, order)
+        if m < length(ρ)
+            T[Me, Me+1] = inner_product(DΦ, νe, m, νo, m+1, ρ, order)
+
+            T[Mo, Mo+2] = inner_product(DΦ, νo, m, νo, m+1, ρ, order)
+            T[Me, Me+2] = inner_product(DΦ, νe, m, νe, m+1, ρ, order)
+
+            T[Mo, Mo+3] = inner_product(DΦ, νo, m, νe, m+1, ρ, order)
+            # T[Me, Me+3] = 0.0
         end
-        Ts[2m, 7] = 0.0
     end
-
-    return BandedMatrix(-3 => Ts[4:end,1], -2 => Ts[3:end,2],   -1 => Ts[2:end,3], 0 => Ts[:,4],
-                         1 => Ts[1:end-1,5],  2 => Ts[1:end-2,6], 3 => Ts[1:end-3,7])
-
 end
 
 function αβ(x::Real, QI::QED_state, η)
@@ -60,70 +58,64 @@ end
 # Matrix for the diffusion term
 # Y_mk = (ν_m * d/dρ[α * d/dρ(β * ν_k)])
 # This gets integrated by parts to avoid second derivatives of finite elements
-function define_Y(QI::QED_state, η, order::Integer = 5)
-
-    ρ = QI.ρ
-    N = length(ρ)
+function define_Y(QI::QED_state, η; order::Union{Nothing, Integer}=5)
 
     # transform to single argument functions for inner_product
     ab(x) = αβ(x, QI, η)
     adb_dρ(x) = αdβ_dρ(x, QI, η)
-    
-    # To speed up, if accurate
-    #x = 1.0 .- (1.0 .- range(0.0, 1.0,  2N)).^2
-    #ab = FE(x, αβ.(x, Ref(QI), Ref(η)))
-    #adb_dρ = FE(x, αdβ_dρ.(x, Ref(QI), Ref(η)))    
 
-    Ys = zeros(2N, 7) # Hermite cubics give septadiagonal matrix
-    
-    Threads.@threads for m in 1:N
+    # Hermite cubics give septadiagonal matrix
+    Y = BandedMatrix(Zeros(2length(QI.ρ), 2length(QI.ρ)), (3, 3))
 
-        # First odd with all nearest neighbors
-        Ys[2m-1, 1] = 0.0
-        if m > 1
-            Ys[2m-1, 2]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
-            Ys[2m-1, 3]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
-        end
-        
-        Ys[2m-1, 4]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
-        Ys[2m-1, 5]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
+    define_Y!(Y, ab, adb_dρ, QI.ρ, order)
 
-        if m < N
-            Ys[2m-1, 6]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
-            Ys[2m-1, 7]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
-        end
-
-        # Then even with all nearest neighbors
-        if m > 1
-            Ys[2m, 1]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
-            Ys[2m, 2]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
-        end
-        
-        Ys[2m, 3]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
-        Ys[2m, 4]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
-
-        if m < N
-            Ys[2m, 5]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
-            Ys[2m, 6]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
-        end
-        Ys[2m, 7] = 0.0
-    end
-    
     # Y matrix has an integration by parts, so we need the boundary terms
 
-    # Term at ρ=1 goes in the 2N row (only element non-zero at ρ=1)
-    Ys[2N, 4] += adb_dρ(1.0) # νe(1.0, N, ρ) is 1.0
-    Ys[2N, 3] += ab(1.0) * D_νo(1.0, N, ρ)
-    
     # Term at ρ=0 uses fact β(0)=0 and ρ * (F/V') * d(V'/F)/dρ = 1.0
-    Ys[2, 4] -= adb_dρ(0.0)
-    
-    return BandedMatrix(-3 => Ys[4:end,1],   -2 => Ys[3:end,2],   -1 => Ys[2:end,3], 0 => Ys[:,4],
-                         1 => Ys[1:end-1,5],  2 => Ys[1:end-2,6],  3 => Ys[1:end-3,7])
+    Y[2, 2] -= adb_dρ(0.0)
 
+    # Term at ρ=1 goes in the 2N row (only element non-zero at ρ=1)
+    N = length(QI.ρ)
+    Y[2N, 2N] += adb_dρ(1.0) # νe(1.0, N, QI.ρ) is 1.0
+    Y[2N, 2N-1] += ab(1.0) * D_νo(1.0, N, QI.ρ)
+
+    return Y
 end
 
-function define_Sni(QI::QED_state, η, order::Integer = 5)
+function define_Y!(Y::BandedMatrix, ab, adb_dρ,  ρ::AbstractVector{<:Real}, order::Union{Nothing,Integer})
+    Threads.@threads for m in eachindex(ρ)
+        Me = 2m
+        Mo = Me - 1
+
+        if m > 1
+            #Y[Mo, Mo-3] = 0.0
+            Y[Me, Me-3]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
+            Y[Mo, Mo-2]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
+            Y[Me, Me-2]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
+
+            Y[Mo, Mo-1]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
+        end
+        Y[Me, Me-1]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
+
+        Y[Mo, Mo]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
+        Y[Me, Me]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
+
+        Y[Mo, Mo+1]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
+        if m < length(ρ)
+            Y[Me, Me+1]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
+
+            Y[Mo, Mo+2]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
+            Y[Me, Me+2]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
+
+            Y[Mo, Mo+3]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
+            #Y[Me, Me+3] = 0.0
+        end
+    end
+
+    return Y
+end
+
+function define_Sni(QI::QED_state, η; order::Union{Nothing,Integer}=5)
 
     QI.JBni === nothing && return nothing
 
@@ -236,15 +228,15 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
                 b[end] = Ip * μ₀ * (2π)^2 / (dΦ_dρ(QI, 1.0) * QI.dV_dρ(1.0) * fsa_∇ρ²_R²(QI, 1.0))
             end
         end
-        
+
         mul!(c, invA, b)
-        
+
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1
             ιs[np] = FE_rep(ρ, deepcopy(c))
             times[np] = round(Δt*n, digits=3)
         end
-        
+
     end
 
     ι = FE_rep(ρ, c)
