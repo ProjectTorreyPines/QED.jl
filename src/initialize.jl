@@ -1,5 +1,5 @@
-struct QED_state{T <: Real, S <: FE_rep{<:AbstractVector{<:Real}}}
-    ρ::AbstractVector{T}
+struct QED_state{U <: AbstractVector{<:Real}, T <: Real, S <: FE_rep}
+    ρ::U
     dΡ_dρ::T
     B₀::T
     fsa_R⁻²::S
