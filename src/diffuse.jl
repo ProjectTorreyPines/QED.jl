@@ -139,15 +139,19 @@ function define_Sni(QI::QED_state, η; order::Union{Nothing,Integer}=5)
 end
 
 function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
-                 θimp = 0.5,
-                 T = nothing, Y = nothing,
-                 Vedge = nothing, Ip = nothing,
-                 debug = false, Np = nothing)
+                 θimp::Real = 0.5,
+                 Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing,
+                 debug::Bool = false, Np::Union{Nothing, Integer} = nothing)
+    T = define_T(QI)
+    Y = define_Y(QI, η)
+    return diffuse(QI, η, tmax, Nt, T, Y; θimp, Vedge, Ip, debug, Np)
+end
 
-    T === nothing && (T = define_T(QI))
-    Y === nothing && (Y = define_Y(QI, η))
+function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y::BandedMatrix;
+                 θimp::Real = 0.5,
+                 Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing,
+                 debug::Bool = false, Np::Union{Nothing, Integer} = nothing)
 
-    Δt = tmax / Nt
     inv_Δt = Nt / tmax
 
     θexp = 1.0 - θimp
@@ -155,11 +159,15 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     ρ = QI.ρ
 
     # A = T / Δt - θimp * Y
-    A = deepcopy(T)
-    rmul!(A, inv_Δt)
+    if inv_Δt == 0.0
+        A = zero(T)
+    else
+        A = deepcopy(T)
+        rmul!(A, inv_Δt)
+    end
     (θimp != 0) && (A .-= θimp .* Y)
 
-    # On-axis oundary conditions
+    # On-axis boundary conditions
     # ι' = 0
     A[1, :] .= 0.0
     A[1, 1] = 1.0
@@ -197,9 +205,12 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     # We advance c, the coefficients of ι,
     #   but we never actually need ι until the end (except for debugging)
     for n in 1:Nt
-        mul!(b, T, c)
-        #b .= T * c
-        rmul!(b, inv_Δt)
+        if inv_Δt == 0.0
+            b .= 0.0
+        else
+            mul!(b, T, c)
+            rmul!(b, inv_Δt)
+        end
         if θexp != 0.0
             mul!(btmp, Y, c)
             rmul!(btmp, θexp)
@@ -234,7 +245,7 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1
             ιs[np] = FE_rep(ρ, deepcopy(c))
-            times[np] = round(Δt*n, digits=3)
+            times[np] = round(n/inv_Δt, digits=3)
         end
 
     end
@@ -248,10 +259,14 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
 
 end
 
-function steady_state(QI::QED_state, η;
-                      Y = nothing,
-                      Vedge = nothing, Ip = nothing,
-                      debug = false)
-    Y === nothing && (Y = define_Y(QI, η))
-    return diffuse(QI, η, Inf, 1, θimp=1.0, T=0.0.*Y, Y=Y, Vedge=Vedge, Ip=Ip, debug=debug)
+function steady_state(QI::QED_state, η; debug::Bool = false,
+                      Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing)
+    Y = define_Y(QI, η)
+    return steady_state(QI, η, Y; Vedge, Ip, debug)
+end
+
+function steady_state(QI::QED_state, η, Y::BandedMatrix; debug::Bool = false,
+                      Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing)
+    # T isn't used in steady state, so we'll just feed it Y without harm
+    return diffuse(QI, η, Inf, 1, Y, Y, θimp=1.0; Vedge, Ip, debug)
 end
