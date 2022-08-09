@@ -1,6 +1,6 @@
 # Matrix for the time-derivative term (without Δt)
 # T_mk = (dΦ_dρ * ν_m * ν_k)
-function define_T(QI::QED_state)
+function define_T(QI::QED_state, order::Integer = 5)
 
     ρ = QI.ρ
     dΦ_dρ = QI.dΦ_dρ
@@ -13,26 +13,26 @@ function define_T(QI::QED_state)
         # First odd with all nearest neighbors
         Ts[2m-1, 1] = 0.0
         if m > 1
-            Ts[2m-1, 2] = inner_product(dΦ_dρ, νo, m, νo, m-1, ρ)
-            Ts[2m-1, 3] = inner_product(dΦ_dρ, νo, m, νe, m-1, ρ)
+            Ts[2m-1, 2] = inner_product(dΦ_dρ, νo, m, νo, m-1, ρ, order)
+            Ts[2m-1, 3] = inner_product(dΦ_dρ, νo, m, νe, m-1, ρ, order)
         end
-        Ts[2m-1, 4] = inner_product(dΦ_dρ, νo, m, νo, m, ρ)
-        Ts[2m-1, 5] = inner_product(dΦ_dρ, νo, m, νe, m, ρ)
+        Ts[2m-1, 4] = inner_product(dΦ_dρ, νo, m, νo, m, ρ, order)
+        Ts[2m-1, 5] = inner_product(dΦ_dρ, νo, m, νe, m, ρ, order)
         if m < N
-            Ts[2m-1, 6] = inner_product(dΦ_dρ, νo, m, νo, m+1, ρ)
-            Ts[2m-1, 7] = inner_product(dΦ_dρ, νo, m, νe, m+1, ρ)
+            Ts[2m-1, 6] = inner_product(dΦ_dρ, νo, m, νo, m+1, ρ, order)
+            Ts[2m-1, 7] = inner_product(dΦ_dρ, νo, m, νe, m+1, ρ, order)
         end
 
         # Then even with all nearest neighbors
         if m > 1
-            Ts[2m, 1] = inner_product(dΦ_dρ, νe, m, νo, m-1, ρ)
-            Ts[2m, 2] = inner_product(dΦ_dρ, νe, m, νe, m-1, ρ)
+            Ts[2m, 1] = inner_product(dΦ_dρ, νe, m, νo, m-1, ρ, order)
+            Ts[2m, 2] = inner_product(dΦ_dρ, νe, m, νe, m-1, ρ, order)
         end
-        Ts[2m, 3] = inner_product(dΦ_dρ, νe, m, νo, m, ρ)
-        Ts[2m, 4] = inner_product(dΦ_dρ, νe, m, νe, m, ρ)
+        Ts[2m, 3] = inner_product(dΦ_dρ, νe, m, νo, m, ρ, order)
+        Ts[2m, 4] = inner_product(dΦ_dρ, νe, m, νe, m, ρ, order)
         if m < N
-            Ts[2m, 5] = inner_product(dΦ_dρ, νe, m, νo, m+1, ρ)
-            Ts[2m, 6] = inner_product(dΦ_dρ, νe, m, νe, m+1, ρ)
+            Ts[2m, 5] = inner_product(dΦ_dρ, νe, m, νo, m+1, ρ, order)
+            Ts[2m, 6] = inner_product(dΦ_dρ, νe, m, νe, m+1, ρ, order)
         end
         Ts[2m, 7] = 0.0
     end
@@ -60,7 +60,7 @@ end
 # Matrix for the diffusion term
 # Y_mk = (ν_m * d/dρ[α * d/dρ(β * ν_k)])
 # This gets integrated by parts to avoid second derivatives of finite elements
-function define_Y(QI::QED_state, η)
+function define_Y(QI::QED_state, η, order::Integer = 5)
 
     ρ = QI.ρ
     N = length(ρ)
@@ -81,30 +81,30 @@ function define_Y(QI::QED_state, η)
         # First odd with all nearest neighbors
         Ys[2m-1, 1] = 0.0
         if m > 1
-            Ys[2m-1, 2]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m-1, ρ)
-            Ys[2m-1, 3]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m-1, ρ)
+            Ys[2m-1, 2]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
+            Ys[2m-1, 3]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
         end
         
-        Ys[2m-1, 4]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m, ρ)
-        Ys[2m-1, 5]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m, ρ)
+        Ys[2m-1, 4]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
+        Ys[2m-1, 5]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
 
         if m < N
-            Ys[2m-1, 6]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m+1, ρ)
-            Ys[2m-1, 7]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m+1, ρ)
+            Ys[2m-1, 6]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
+            Ys[2m-1, 7]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
         end
 
         # Then even with all nearest neighbors
         if m > 1
-            Ys[2m, 1]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m-1, ρ)
-            Ys[2m, 2]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m-1, ρ)
+            Ys[2m, 1]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
+            Ys[2m, 2]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
         end
         
-        Ys[2m, 3]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m, ρ)
-        Ys[2m, 4]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m, ρ)
+        Ys[2m, 3]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
+        Ys[2m, 4]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
 
         if m < N
-            Ys[2m, 5]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m+1, ρ)
-            Ys[2m, 6]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m+1, ρ)
+            Ys[2m, 5]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
+            Ys[2m, 6]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
         end
         Ys[2m, 7] = 0.0
     end
@@ -123,7 +123,7 @@ function define_Y(QI::QED_state, η)
 
 end
 
-function define_Sni(QI::QED_state, η)
+function define_Sni(QI::QED_state, η, order::Integer = 5)
 
     QI.JBni === nothing && return nothing
 
@@ -134,8 +134,8 @@ function define_Sni(QI::QED_state, η)
 
     Sni = zeros(2N)
     for m in 1:N
-        Sni[2m-1] = inner_product(V, D_νo, m, ρ)
-        Sni[2m]   = inner_product(V, D_νe, m, ρ)
+        Sni[2m-1] = inner_product(V, D_νo, m, ρ, order)
+        Sni[2m]   = inner_product(V, D_νe, m, ρ, order)
     end
 
     # Boundary terms from integration by parts
