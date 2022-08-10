@@ -15,7 +15,7 @@ using Plots
     η = η_imas(transp_0)
 
     # Diffuse for 1.0 s
-    QI = diffuse(QI_0, η, 1.0, 10000, Np=1000, Vedge=0.0, debug=true)
+    QI = diffuse(QI_0, η, 1.0, 10000, θimp=0.25, Np=1000, Vedge=0.0, debug=true)
 
     # Compare to TRANSP data at 4.0 s
     file_1 = joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "ods_163303Z26-4000.json")
@@ -62,10 +62,10 @@ end
     Y = define_Y(QI_0, η)
 
     # Diffuse for 1.0 s with current held fixed
-    QI = diffuse(QI_0, η, 1.0, 10000, T=T, Y=Y, Np=1000)
+    QI = diffuse(QI_0, η, 1.0, 10000, T, Y, Np=1000)
 
     # Diffuse for 1.0 s with current held fixed
-    QI_2MA = diffuse(QI_0, η, 1.0, 10000, T=T, Y=Y, Ip=2e6, Np=1000)
+    QI_2MA = diffuse(QI_0, η, 1.0, 10000, T, Y, θimp = 0.75, Ip=2e6, Np=1000)
 
     file_1 = joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "ods_163303Z27-3910.json")
     transp_1 = JSON.parsefile(file_1)
@@ -187,7 +187,6 @@ end
     JBni(x) = -1e6 * (0.9 * sin(2π * x) + 0.1)
     QI_0 = QED_state(QI_0, JBni=JBni)
 
-    T = define_T(QI_0)
     Y = define_Y(QI_0, η)
 
     ρ = QI_0.ρ
@@ -204,7 +203,8 @@ end
         plot!(ρ, JB(QI_ev), label="QED $(i * 10) s", linewidth=3, color=col)
     end
 
-    QI_ss = steady_state(QI_0, η, Y=Y, Vedge=0.0)
+    QI_ss = steady_state(QI_0, η, Vedge=0.0)
+    QI_ss = steady_state(QI_0, η, Y, Vedge=0.0)
     plot!(ρ, JB(QI_ss), label="QED steady-state", linewidth=3, color=:deepskyblue)
 
     display(p)
