@@ -1,4 +1,3 @@
-using Revise
 using QED
 import QED: JSON
 using Test
