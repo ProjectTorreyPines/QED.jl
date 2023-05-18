@@ -8,7 +8,7 @@ using JSON
 function parse_commandline()
     s = ArgParseSettings()
 
-    @add_arg_table s begin
+    @add_arg_table! s begin
         "--tmax", "-T"
             help = "Maximum time to diffuse (seconds)"
             arg_type = typeof(0.0)
