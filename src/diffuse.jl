@@ -15,12 +15,12 @@ function define_T!(T::BandedMatrix, DΦ, ρ::AbstractVector{<:Real}, order::Unio
 
         if m > 1
             # T[Mo, Mo-3] = 0.0
-            T[Me, Me-3] = inner_product(DΦ, νe, m, νo, m-1, ρ, order)
+            T[Me, Me-3] = inner_product(DΦ, νe, m, νo, m - 1, ρ, order)
 
-            T[Mo, Mo-2] = inner_product(DΦ, νo, m, νo, m-1, ρ, order)
-            T[Me, Me-2] = inner_product(DΦ, νe, m, νe, m-1, ρ, order)
+            T[Mo, Mo-2] = inner_product(DΦ, νo, m, νo, m - 1, ρ, order)
+            T[Me, Me-2] = inner_product(DΦ, νe, m, νe, m - 1, ρ, order)
 
-            T[Mo, Mo-1] = inner_product(DΦ, νo, m, νe, m-1, ρ, order)
+            T[Mo, Mo-1] = inner_product(DΦ, νo, m, νe, m - 1, ρ, order)
         end
         T[Me, Me-1] = inner_product(DΦ, νe, m, νo, m, ρ, order)
 
@@ -29,12 +29,12 @@ function define_T!(T::BandedMatrix, DΦ, ρ::AbstractVector{<:Real}, order::Unio
 
         T[Mo, Mo+1] = inner_product(DΦ, νo, m, νe, m, ρ, order)
         if m < length(ρ)
-            T[Me, Me+1] = inner_product(DΦ, νe, m, νo, m+1, ρ, order)
+            T[Me, Me+1] = inner_product(DΦ, νe, m, νo, m + 1, ρ, order)
 
-            T[Mo, Mo+2] = inner_product(DΦ, νo, m, νo, m+1, ρ, order)
-            T[Me, Me+2] = inner_product(DΦ, νe, m, νe, m+1, ρ, order)
+            T[Mo, Mo+2] = inner_product(DΦ, νo, m, νo, m + 1, ρ, order)
+            T[Me, Me+2] = inner_product(DΦ, νe, m, νe, m + 1, ρ, order)
 
-            T[Mo, Mo+3] = inner_product(DΦ, νo, m, νe, m+1, ρ, order)
+            T[Mo, Mo+3] = inner_product(DΦ, νo, m, νe, m + 1, ρ, order)
             # T[Me, Me+3] = 0.0
         end
     end
@@ -58,7 +58,7 @@ end
 # Matrix for the diffusion term
 # Y_mk = (ν_m * d/dρ[α * d/dρ(β * ν_k)])
 # This gets integrated by parts to avoid second derivatives of finite elements
-function define_Y(QI::QED_state, η; order::Union{Nothing, Integer}=5)
+function define_Y(QI::QED_state, η; order::Union{Nothing,Integer}=5)
 
     # transform to single argument functions for inner_product
     ab(x) = αβ(x, QI, η)
@@ -82,32 +82,32 @@ function define_Y(QI::QED_state, η; order::Union{Nothing, Integer}=5)
     return Y
 end
 
-function define_Y!(Y::BandedMatrix, ab, adb_dρ,  ρ::AbstractVector{<:Real}, order::Union{Nothing,Integer})
+function define_Y!(Y::BandedMatrix, ab, adb_dρ, ρ::AbstractVector{<:Real}, order::Union{Nothing,Integer})
     Threads.@threads for m in eachindex(ρ)
         Me = 2m
         Mo = Me - 1
 
         if m > 1
             #Y[Mo, Mo-3] = 0.0
-            Y[Me, Me-3]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
-            Y[Mo, Mo-2]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m-1, ρ, order)
-            Y[Me, Me-2]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
+            Y[Me, Me-3] = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m - 1, ρ, order)
+            Y[Mo, Mo-2] = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m - 1, ρ, order)
+            Y[Me, Me-2] = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m - 1, ρ, order)
 
-            Y[Mo, Mo-1]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m-1, ρ, order)
+            Y[Mo, Mo-1] = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m - 1, ρ, order)
         end
-        Y[Me, Me-1]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
+        Y[Me, Me-1] = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
 
-        Y[Mo, Mo]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
-        Y[Me, Me]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
+        Y[Mo, Mo] = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m, ρ, order)
+        Y[Me, Me] = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
 
-        Y[Mo, Mo+1]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
+        Y[Mo, Mo+1] = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m, ρ, order)
         if m < length(ρ)
-            Y[Me, Me+1]  = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
+            Y[Me, Me+1] = -inner_product(D_νe, m, ab, D_νo, adb_dρ, νo, m + 1, ρ, order)
 
-            Y[Mo, Mo+2]  = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m+1, ρ, order)
-            Y[Me, Me+2]  = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
+            Y[Mo, Mo+2] = -inner_product(D_νo, m, ab, D_νo, adb_dρ, νo, m + 1, ρ, order)
+            Y[Me, Me+2] = -inner_product(D_νe, m, ab, D_νe, adb_dρ, νe, m + 1, ρ, order)
 
-            Y[Mo, Mo+3]  = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m+1, ρ, order)
+            Y[Mo, Mo+3] = -inner_product(D_νo, m, ab, D_νe, adb_dρ, νe, m + 1, ρ, order)
             #Y[Me, Me+3] = 0.0
         end
     end
@@ -127,30 +127,30 @@ function define_Sni(QI::QED_state, η; order::Union{Nothing,Integer}=5)
     Sni = zeros(2N)
     for m in 1:N
         Sni[2m-1] = inner_product(V, D_νo, m, ρ, order)
-        Sni[2m]   = inner_product(V, D_νe, m, ρ, order)
+        Sni[2m] = inner_product(V, D_νe, m, ρ, order)
     end
 
     # Boundary terms from integration by parts
     # Only need first and last even, since only ones nonzero on boundary
     Sni[2N] -= Vni(QI, η, 1.0)# * νe(1.0, N, ρ)
-    Sni[2]  += Vni(QI, η, 0.0)# * νe(0.0, 1, ρ)
+    Sni[2] += Vni(QI, η, 0.0)# * νe(0.0, 1, ρ)
 
     return Sni
 end
 
 function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
-                 θimp::Real = 0.5,
-                 Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing,
-                 debug::Bool = false, Np::Union{Nothing, Integer} = nothing)
+    θimp::Real=0.5,
+    Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing,
+    debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
     T = define_T(QI)
     Y = define_Y(QI, η)
     return diffuse(QI, η, tmax, Nt, T, Y; θimp, Vedge, Ip, debug, Np)
 end
 
 function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y::BandedMatrix;
-                 θimp::Real = 0.5,
-                 Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing,
-                 debug::Bool = false, Np::Union{Nothing, Integer} = nothing)
+    θimp::Real=0.5,
+    Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing,
+    debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
 
     inv_Δt = Nt / tmax
 
@@ -186,9 +186,9 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y:
 
     if debug
         Np === nothing && (Np = Int(floor(Nt^0.75)))
-        mod(Nt, Np) == 0 ? Ncol = Nt÷Np + 2 : Ncol = Nt÷Np + 3
-        ιs = Vector{FE_rep}(undef, Ncol-2)
-        times = zeros(Ncol-2)
+        mod(Nt, Np) == 0 ? Ncol = Nt ÷ Np + 2 : Ncol = Nt ÷ Np + 3
+        ιs = Vector{FE_rep}(undef, Ncol - 2)
+        times = zeros(Ncol - 2)
         np = 0
     end
     Sni = define_Sni(QI, η)
@@ -245,7 +245,7 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y:
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1
             ιs[np] = FE_rep(ρ, deepcopy(c))
-            times[np] = round(n/inv_Δt, digits=3)
+            times[np] = round(n / inv_Δt, digits=3)
         end
 
     end
@@ -259,14 +259,14 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y:
 
 end
 
-function steady_state(QI::QED_state, η; debug::Bool = false,
-                      Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing)
+function steady_state(QI::QED_state, η; debug::Bool=false,
+    Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing)
     Y = define_Y(QI, η)
     return steady_state(QI, η, Y; Vedge, Ip, debug)
 end
 
-function steady_state(QI::QED_state, η, Y::BandedMatrix; debug::Bool = false,
-                      Vedge::Union{Nothing, Real} = nothing, Ip::Union{Nothing, Real} = nothing)
+function steady_state(QI::QED_state, η, Y::BandedMatrix; debug::Bool=false,
+    Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing)
     # T isn't used in steady state, so we'll just feed it Y without harm
     return diffuse(QI, η, Inf, 1, Y, Y, θimp=1.0; Vedge, Ip, debug)
 end

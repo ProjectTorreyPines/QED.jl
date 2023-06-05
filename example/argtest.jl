@@ -62,13 +62,13 @@ function main()
 
     if args["tmax"] === Inf
         println("  Running in steady-state with " * printbc())
-        QO = steady_state(QI, η, Vedge = args["Vedge"], Ip = args["Ip"])
+        QO = steady_state(QI, η, Vedge=args["Vedge"], Ip=args["Ip"])
     else
         println("  Running for $(args["tmax"]) s in $(args["timesteps"]) time steps with " * printbc())
         QO = diffuse(QI, η, args["tmax"], args["timesteps"],
-                     Vedge = args["Vedge"], Ip = args["Ip"])
+            Vedge=args["Vedge"], Ip=args["Ip"])
     end
-    
+
     println("  Diffusion complete")
 
     # Write ι and <Jt/R> to the output file
@@ -77,15 +77,15 @@ function main()
     ρ = eqt["profiles_1d"]["rho_tor"] / eqt["profiles_1d"]["rho_tor"][end]
     eqt["profiles_1d"]["q"] = 1.0 ./ QO.ι.(ρ)
     eqt["profiles_1d"]["j_tor"] = QO.JtoR.(ρ) ./ eqt["profiles_1d"]["gm9"]
-    
+
     println("  Outputting results to $(args["output_file"])")
-    
+
     open(args["output_file"], "w") do f
         JSON.print(f, output, 1)
     end
 
     println("Exiting QED")
-    
+
     return 0
 end
 

@@ -1,4 +1,4 @@
-struct QED_state{U <: AbstractVector{<:Real}, T <: Real, S <: FE_rep}
+struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep}
     ρ::U
     dΡ_dρ::T
     B₀::T
@@ -13,23 +13,23 @@ struct QED_state{U <: AbstractVector{<:Real}, T <: Real, S <: FE_rep}
 end
 
 @inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
-@inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε = 1e-3)
-    r == 0 && return 2*fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε) # Linearly extrapolate to axis
+@inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε=1e-3)
+    r == 0 && return 2 * fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε) # Linearly extrapolate to axis
     return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
 end
 @inline function D_fsa_∇ρ²_R²(QI::QED_state, x::Real)
-   return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
+    return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
 end
 
 function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing,
-                   x = 1.0 .- (1.0 .- range(0, 1, length=length(ρ))).^2)
+    x=1.0 .- (1.0 .- range(0, 1, length=length(ρ))) .^ 2)
 
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
     # where dΨ_dρ = ι * dΦ_dρ
     # Then dχ/dρ = ξ
     # Solve for χ by integrating ξ, noting that χ=0 at ρ=0
     ξ = FE(x, 2π * μ₀ * dV_dρ.(x) .* JtoR.(x))
-    C = zeros(2*length(x))
+    C = zeros(2 * length(x))
     C[2:2:end] .= I.(Ref(ξ), x) # value of χ is integral of ξ
     C[1:2:end] .= ξ.(x)         # derivative of χ is value of ξ
     χ = FE_rep(x, C)
@@ -44,7 +44,7 @@ function QED_state(QI::QED_state, ι, JtoR)
     return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.χ, QI.JBni, QI._ι_eq)
 end
 
-function QED_state(QI::QED_state;  JBni=nothing)
+function QED_state(QI::QED_state; JBni=nothing)
     if JBni isa AbstractVector
         JBni = FE(QI.ρ, JBni)
     elseif JBni !== nothing
@@ -79,11 +79,11 @@ function from_imas(data::Dict, timeslice=1)
 end
 
 function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9;
-                    ρ_j_non_inductive=nothing)
+    ρ_j_non_inductive=nothing)
 
     dΡ_dρ = rho_tor[end]
 
-    ρ = rho_tor/dΡ_dρ
+    ρ = rho_tor / dΡ_dρ
 
     rtype = typeof(ρ[1])
 
@@ -95,7 +95,7 @@ function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9;
     tmp[1] = 0.0
     dV_dρ = FE(ρ, tmp)
 
-    ι = FE(ρ, 1.0./q)
+    ι = FE(ρ, 1.0 ./ q)
     JtoR = FE(ρ, j_tor .* gm9)
 
     if ρ_j_non_inductive === nothing
@@ -127,8 +127,8 @@ function η_FE(rho, η; use_log=true)
     end
 end
 
-function η_mock(; T0 = 3000.0, Tp = 500.0, Ts = 100.0)
+function η_mock(; T0=3000.0, Tp=500.0, Ts=100.0)
     # Spitzer resistivity in Ωm from NRL (assuming Z=2 and lnΛ=15)
-    Te(x) = 0.5*(Tp  + (T0-Tp)*(1.0-x) - Ts)*(1.0 - tanh((x-0.95)/0.025)) + Ts
-    return x -> 3.1e-3/Te(x)^1.5
+    Te(x) = 0.5 * (Tp + (T0 - Tp) * (1.0 - x) - Ts) * (1.0 - tanh((x - 0.95) / 0.025)) + Ts
+    return x -> 3.1e-3 / Te(x)^1.5
 end
