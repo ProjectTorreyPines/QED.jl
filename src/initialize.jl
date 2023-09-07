@@ -78,7 +78,7 @@ function from_imas(data::Dict, timeslice=1)
     return initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
 end
 
-function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive=nothing)
+function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive=nothing, ρ_grid=nothing)
 
     dΡ_dρ = rho_tor[end]
 
@@ -94,7 +94,6 @@ function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j
     tmp[1] = 0.0
     dV_dρ = FE(ρ, tmp)
 
-    ι = FE(ρ, 1.0 ./ q)
     JtoR = FE(ρ, j_tor .* gm9)
 
     if ρ_j_non_inductive === nothing
@@ -104,7 +103,13 @@ function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j
         JBni = FE(rtype.(rho_tor_norm), j_non_inductive .* B₀)
     end
 
-    return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni)
+    if ρ_grid !== nothing
+        ι = FE(ρ_grid, (ρ, 1.0 ./ q))
+        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni)
+    else
+        ι = FE(ρ, 1.0 ./ q)
+        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni)
+    end
 end
 
 η_imas(filename::String, timeslice=1) = η_imas(JSON.parsefile(filename), timeslice)
