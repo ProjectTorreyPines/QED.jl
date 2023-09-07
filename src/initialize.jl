@@ -55,8 +55,7 @@ end
 
 from_imas(filename::String, timeslice=1) = from_imas(JSON.parsefile(filename), timeslice)
 
-function from_imas(data::Dict, timeslice=1)
-
+function from_imas(data::Dict, timeslice::Int=1)
     eqt = data["equilibrium"]["time_slice"][timeslice]
     rho_tor = eqt["profiles_1d"]["rho_tor"]
     B₀ = data["equilibrium"]["vacuum_toroidal_field"]["b0"][timeslice]
@@ -79,12 +78,11 @@ function from_imas(data::Dict, timeslice=1)
 end
 
 function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive=nothing)
-
     dΡ_dρ = rho_tor[end]
 
     ρ = rho_tor / dΡ_dρ
 
-    rtype = typeof(ρ[1])
+    rtype = eltype(ρ)
 
     fsa_R⁻² = FE(ρ, rtype.(gm1))
     F = FE(ρ, rtype.(f))
@@ -116,8 +114,8 @@ function η_imas(data::Dict, timeslice=1; use_log=true)
     η_FE(rho, η; use_log)
 end
 
-function η_FE(rho, η; use_log=true)
-    rtype = typeof(η[1])
+function η_FE(rho, η; use_log::Bool=true)
+    rtype = eltype(η)
     if use_log
         log_η = FE(rtype.(rho), log.(η))
         return x -> exp(log_η(x))

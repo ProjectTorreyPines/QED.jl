@@ -184,7 +184,7 @@ end
     η = η_mock()
 
     JBni(x) = -1e6 * (0.9 * sin(2π * x) + 0.1)
-    QI_0 = QED_state(QI_0, JBni=JBni)
+    QI_0 = QED_state(QI_0; JBni)
 
     Y = define_Y(QI_0, η)
 
