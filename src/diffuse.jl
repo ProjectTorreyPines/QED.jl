@@ -59,7 +59,6 @@ end
 # Y_mk = (ν_m * d/dρ[α * d/dρ(β * ν_k)])
 # This gets integrated by parts to avoid second derivatives of finite elements
 function define_Y(QI::QED_state, η; order::Union{Nothing,Integer}=5)
-
     # transform to single argument functions for inner_product
     ab(x) = αβ(x, QI, η)
     adb_dρ(x) = αdβ_dρ(x, QI, η)

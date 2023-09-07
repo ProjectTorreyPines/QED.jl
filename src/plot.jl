@@ -8,3 +8,21 @@ function plot_JtoR_profiles(QI::QED_state, ιs::Vector{FE_rep}, times::Vector{Fl
     end
     display(p)
 end
+
+Plots.@recipe function plot_state(Q::QED_state)
+    Plots.@series begin
+        group := 1
+        label := "<Jt/R>"
+        xlabel := "ρ"
+        ylabel := "[A]"
+        Q.ρ, JB(Q)
+    end
+    if Q.JBni !== nothing
+        Plots.@series begin
+            group := 1
+            label := "<Jni/R>"
+            style := :dash
+            Q.ρ, Q.JBni.(Q.ρ)
+        end
+    end
+end
