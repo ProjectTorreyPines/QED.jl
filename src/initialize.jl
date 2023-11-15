@@ -1,4 +1,4 @@
-struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep}
+mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep}
     ρ::U
     dΡ_dρ::T
     B₀::T
