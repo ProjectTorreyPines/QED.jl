@@ -245,13 +245,13 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y:
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1
             ιs[np] = FE_rep(ρ, deepcopy(c))
-            times[np] = round(n / inv_Δt, digits=3)
+            times[np] = round(n / inv_Δt; digits=3)
         end
 
     end
 
     ι = FE_rep(ρ, c)
-    JtoR = Jt_R(QI, ι=ι)
+    JtoR = Jt_R(QI; ι=ι)
 
     debug && plot_JtoR_profiles(QI, ιs, times, Ncol)
 
@@ -268,5 +268,5 @@ end
 function steady_state(QI::QED_state, η, Y::BandedMatrix; debug::Bool=false,
     Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing)
     # T isn't used in steady state, so we'll just feed it Y without harm
-    return diffuse(QI, η, Inf, 1, Y, Y, θimp=1.0; Vedge, Ip, debug)
+    return diffuse(QI, η, Inf, 1, Y, Y; θimp=1.0, Vedge, Ip, debug)
 end

@@ -13,16 +13,18 @@ mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep}
 end
 
 @inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
+
 @inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε=1e-3)
     r == 0 && return 2 * fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε) # Linearly extrapolate to axis
     return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
 end
+
 @inline function D_fsa_∇ρ²_R²(QI::QED_state, x::Real)
     return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
 end
 
 function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing,
-    x=1.0 .- (1.0 .- range(0, 1, length=length(ρ))) .^ 2)
+    x=1.0 .- (1.0 .- range(0, 1; length=length(ρ))) .^ 2)
 
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
     # where dΨ_dρ = ι * dΦ_dρ
@@ -118,7 +120,7 @@ function η_imas(data::Dict, timeslice=1; use_log=true)
     prof1d = data["core_profiles"]["profiles_1d"][timeslice]
     rho = prof1d["grid"]["rho_tor_norm"]
     η = 1.0 ./ prof1d["conductivity_parallel"]
-    η_FE(rho, η; use_log)
+    return η_FE(rho, η; use_log)
 end
 
 function η_FE(rho, η; use_log=true)
