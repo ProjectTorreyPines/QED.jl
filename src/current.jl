@@ -19,9 +19,8 @@ function Jt_R!(J::AbstractVector{<:Real}, QI::QED_state; ι::FE_rep=QI.ι, ρ::A
     return J
 end
 
-function JB(QI::QED_state; ι=QI.ι)
-    ρ = QI.ρ
-    fsa_JB = QI.F.(ρ) .* Jt_R(QI, ι=ι)
+function JB(QI::QED_state; ι=QI.ι, ρ::AbstractVector{<:Real}=QI.ρ)
+    fsa_JB = QI.F.(ρ) .* Jt_R(QI; ι, ρ)
     return fsa_JB .- D.(Ref(QI.F), ρ) .* dΦ_dρ.(Ref(QI), ρ) .* fsa_∇ρ²_R².(Ref(QI), ρ) .* ι.(ρ) ./ (2π * μ₀)
 end
 
