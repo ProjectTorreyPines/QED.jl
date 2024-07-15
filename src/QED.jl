@@ -18,13 +18,13 @@ end
 const μ₀ = 4e-7 * π
 
 include("initialize.jl")
-export QED_state, from_imas, η_imas, η_FE, η_mock, initialize
+export from_imas, η_imas, η_FE, η_mock, initialize
 
 include("current.jl")
 export Jt_R, JB, Ip
 
 include("diffuse.jl")
-export diffuse, steady_state, define_T, define_Y
+export diffuse, steady_state
 
 include("app.jl")
 

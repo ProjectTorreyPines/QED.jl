@@ -55,8 +55,18 @@ function QED_state(QI::QED_state; JBni=nothing)
     return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.χ, JBni, QI._ι_eq)
 end
 
+"""
+    from_imas(filename::String, timeslice=1)
+
+Initialize the QED data structure from a JSON `filename` in IMAS format at requested `timeslice`
+"""
 from_imas(filename::String, timeslice=1) = from_imas(JSON.parsefile(filename), timeslice)
 
+"""
+    from_imas(data::Dict, timeslice=1)
+
+Initialize the QED data structure from a dictionary `data` in IMAS format at requested `timeslice`
+"""
 function from_imas(data::Dict, timeslice=1)
 
     eqt = data["equilibrium"]["time_slice"][timeslice]
@@ -80,7 +90,45 @@ function from_imas(data::Dict, timeslice=1)
     return initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
 end
 
-function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive=nothing, ρ_grid=nothing)
+"""
+    initialize(rho_tor::AbstractVector{<:Real},
+               B₀::Real,
+               gm1::AbstractVector{<:Real},
+               f::AbstractVector{<:Real},
+               dvolume_drho_tor::AbstractVector{<:Real},
+               q::AbstractVector{<:Real},
+               j_tor::AbstractVector{<:Real},
+               gm9::AbstractVector{<:Real};
+               ρ_j_non_inductive::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
+               ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing)
+
+Initialize the QED data structure with data typically taken from an IMAS-like data structure, e.g.,
+```
+eqt = data["equilibrium"]["time_slice"][timeslice]
+rho_tor = eqt["profiles_1d"]["rho_tor"]
+B₀ = data["equilibrium"]["vacuum_toroidal_field"]["b0"][timeslice]
+gm1 = eqt["profiles_1d"]["gm1"]
+f = eqt["profiles_1d"]["f"]
+dvolume_drho_tor = eqt["profiles_1d"]["dvolume_drho_tor"]
+q = eqt["profiles_1d"]["q"]
+j_tor = eqt["profiles_1d"]["j_tor"]
+gm9 = eqt["profiles_1d"]["gm9"]
+```
+Keyword arguments:
+`ρ_j_non_inductive` - a tuple giving a grid and the noninductive current
+                    e.g., `ρ_j_non_inductive = (prof1d["grid"]["rho_tor_norm"], prof1d["j_non_inductive"])`
+`ρ_grid` - The grid for QED to operate on. By default, it uses normalized `rho_tor`
+"""
+function initialize(rho_tor::AbstractVector{<:Real},
+                    B₀::Real,
+                    gm1::AbstractVector{<:Real},
+                    f::AbstractVector{<:Real},
+                    dvolume_drho_tor::AbstractVector{<:Real},
+                    q::AbstractVector{<:Real},
+                    j_tor::AbstractVector{<:Real},
+                    gm9::AbstractVector{<:Real};
+                    ρ_j_non_inductive::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
+                    ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing)
 
     dΡ_dρ = rho_tor[end]
 
@@ -114,16 +162,34 @@ function initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j
     end
 end
 
-η_imas(filename::String, timeslice=1) = η_imas(JSON.parsefile(filename), timeslice)
+"""
+    η_imas(filename::String, timeslice::Integer=1; use_log::Bool=true)
 
-function η_imas(data::Dict, timeslice=1; use_log=true)
+Return an interpolation of the resistivity from an IMAS-like JSON file `filename` at `timeslice`
+`use_log=true` (default) interpolates on the log of the resistivity
+"""
+η_imas(filename::String, timeslice::Integer=1; use_log::Bool=true) = η_imas(JSON.parsefile(filename), timeslice; use_log)
+
+"""
+    η_imas(data::Dict, timeslice::Integer=1; use_log::Bool=true)
+
+Return an interpolation of the resistivity from an IMAS-like dictionary `data` at `timeslice`
+`use_log=true` (default) interpolates on the log of the resistivity
+"""
+function η_imas(data::Dict, timeslice::Integer=1; use_log::Bool=true)
     prof1d = data["core_profiles"]["profiles_1d"][timeslice]
     rho = prof1d["grid"]["rho_tor_norm"]
     η = 1.0 ./ prof1d["conductivity_parallel"]
     return η_FE(rho, η; use_log)
 end
 
-function η_FE(rho, η; use_log=true)
+"""
+    η_FE(rho::AbstractVector{<:Real}, η::AbstractVector{<:Real}; use_log::Bool=true)
+
+Return a cubic-Hermite finite-element interpolation of the resistivity `η` on grid `rho`
+`use_log=true` (default) interpolates on the log of the resistivity
+"""
+function η_FE(rho::AbstractVector{<:Real}, η::AbstractVector{<:Real}; use_log::Bool=true)
     rtype = typeof(η[1])
     if use_log
         log_η = FE(rtype.(rho), log.(η))
@@ -133,7 +199,12 @@ function η_FE(rho, η; use_log=true)
     end
 end
 
-function η_mock(; T0=3000.0, Tp=500.0, Ts=100.0)
+"""
+    η_mock(; T0::Real=3000.0, Tp::Real=500.0, Ts::Real=100.0)
+
+Return a function of a mock resistivity profile with temperatures `T0` (core), `Tp` (pedestal), and `Ts` (separatrix)
+"""
+function η_mock(; T0::Real=3000.0, Tp::Real=500.0, Ts::Real=100.0)
     # Spitzer resistivity in Ωm from NRL (assuming Z=2 and lnΛ=15)
     Te(x) = 0.5 * (Tp + (T0 - Tp) * (1.0 - x) - Ts) * (1.0 - tanh((x - 0.95) / 0.025)) + Ts
     return x -> 3.1e-3 / Te(x)^1.5

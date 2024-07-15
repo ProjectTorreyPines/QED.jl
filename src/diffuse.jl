@@ -1,5 +1,10 @@
-# Matrix for the time-derivative term (without Δt)
-# T_mk = (dΦ_dρ * ν_m * ν_k)
+"""
+    define_T(QI::QED_state; order::Union{Nothing,Integer}=5)
+
+Return a `BandedMatrix` for the time-derivative term (without Δt) for QED_state `QI`,
+using integration with requested order
+`T_mk = (dΦ_dρ * ν_m * ν_k)`
+"""
 function define_T(QI::QED_state; order::Union{Nothing,Integer}=5)
     DΦ = x -> dΦ_dρ(QI, x)
     # Hermite cubics give septadiagonal matrix
@@ -55,9 +60,14 @@ function αdβ_dρ(x::Real, QI::QED_state, η)
     return 2π * QI.B₀ * QI.dΡ_dρ^2 * η(x) * abp / (μ₀ * QI.fsa_R⁻²(x))
 end
 
-# Matrix for the diffusion term
-# Y_mk = (ν_m * d/dρ[α * d/dρ(β * ν_k)])
-# This gets integrated by parts to avoid second derivatives of finite elements
+"""
+    define_Y(QI::QED_state, η; order::Union{Nothing,Integer}=5)
+
+Return a `BandedMatrix` for the diffusion term for QED_state `QI` and (callable) resistivity `η`,
+Matrix for the diffusion term
+`Y_mk = (ν_m * d/dρ[α * d/dρ(β * ν_k)])``
+This gets integrated by parts to avoid second derivatives of finite elements
+"""
 function define_Y(QI::QED_state, η; order::Union{Nothing,Integer}=5)
 
     # transform to single argument functions for inner_product
@@ -138,16 +148,31 @@ function define_Sni(QI::QED_state, η; order::Union{Nothing,Integer}=5)
     return Sni
 end
 
+"""
+    diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
+            θimp::Real=0.5,
+            Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing,
+            debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
+
+Diffuse rotational transform in QED_state `QI` with resistivity `η` for `tmax` seconds in `Nt`
+One of Vedge or Ip should be set
+Keyword arguments
+    `θimp`  - 0 is fully explicit, 1 is fully implicity, 0.5 (default) gives second-order time accuracy
+    `Vedge` - edge loop voltage boundary condition (in Volts)
+    `Ip`    - total plasma current boundary condition (in Amps)
+    `debug` - plot intermediate rotational-transform profiles
+    `Np`    - if `debug` is true, number of time steps between plots of rotational transform
+"""
 function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     θimp::Real=0.5,
     Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing,
     debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
     T = define_T(QI)
     Y = define_Y(QI, η)
-    return diffuse(QI, η, tmax, Nt, T, Y; θimp, Vedge, Ip, debug, Np)
+    return _diffuse(QI, η, tmax, Nt, T, Y; θimp, Vedge, Ip, debug, Np)
 end
 
-function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y::BandedMatrix;
+function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y::BandedMatrix;
     θimp::Real=0.5,
     Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing,
     debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
@@ -259,14 +284,25 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y:
 
 end
 
+"""
+    steady_state(QI::QED_state, η; debug::Bool=false,
+                 Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing)
+
+Compute steady-state rotational transform for QED_state `QI` with resistivity `η`
+One of Vedge or Ip should be set
+Keyword arguments
+    `Vedge` - edge loop voltage boundary condition (in Volts)
+    `Ip`    - total plasma current boundary condition (in Amps)
+    `debug` - plot rotational-transform profiles
+"""
 function steady_state(QI::QED_state, η; debug::Bool=false,
     Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing)
     Y = define_Y(QI, η)
-    return steady_state(QI, η, Y; Vedge, Ip, debug)
+    return _steady_state(QI, η, Y; Vedge, Ip, debug)
 end
 
-function steady_state(QI::QED_state, η, Y::BandedMatrix; debug::Bool=false,
+function _steady_state(QI::QED_state, η, Y::BandedMatrix; debug::Bool=false,
     Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing)
     # T isn't used in steady state, so we'll just feed it Y without harm
-    return diffuse(QI, η, Inf, 1, Y, Y; θimp=1.0, Vedge, Ip, debug)
+    return _diffuse(QI, η, Inf, 1, Y, Y; θimp=1.0, Vedge, Ip, debug)
 end
