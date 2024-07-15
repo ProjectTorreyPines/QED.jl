@@ -3,37 +3,42 @@ function parse_commandline()
 
     @add_arg_table! s begin
         "--tmax", "-T"
-            help = "Maximum time to diffuse (seconds)"
-            arg_type = typeof(0.0)
-            default = Inf
+        help = "Maximum time to diffuse (seconds)"
+        arg_type = typeof(0.0)
+        default = Inf
         "--timesteps", "-N"
-            help = "Number of time steps"
-            arg_type = typeof(0)
-            default = 1
+        help = "Number of time steps"
+        arg_type = typeof(0)
+        default = 1
         "--Vedge", "-V"
-            help = "Edge loop voltage boundary condition (Volts)"
-            arg_type = typeof(0.0)
+        help = "Edge loop voltage boundary condition (Volts)"
+        arg_type = typeof(0.0)
         "--Ip", "-I"
-            help = "Total plasma current boundary condition (Amps)"
-            arg_type = typeof(0.0)
-        "--timeslice"
-            help = "Time slice to use in JSON file"
-            arg_type = typeof(0)
-            default = 1
-        "input_file"
-            help = "Input JSON filename"
-            required = true
-        "output_file"
-            help = "Output JSON filename"
-            default = "qed_output.json"
-            required = false
+        help = "Total plasma current boundary condition (Amps)"
+        arg_type = typeof(0.0)
+        """
+        --timeslice
+        """
+        help = "Time slice to use in JSON file"
+        arg_type = typeof(0)
+        default = 1
+        """
+        input_file
+        """
+        help = "Input JSON filename"
+        required = true
+        """
+        output_file
+        """
+        help = "Output JSON filename"
+        default = "qed_output.json"
+        required = false
     end
 
     return parse_args(s)
 end
 
 function julia_main()::Cint
-
     println("QED - Q Evolution by Diffusion")
 
     args = parse_commandline()
@@ -55,10 +60,10 @@ function julia_main()::Cint
 
     if args["tmax"] === Inf
         println("  Running in steady-state with " * printbc())
-        QO = steady_state(QI, η, Vedge=args["Vedge"], Ip=args["Ip"])
+        QO = steady_state(QI, η; Vedge=args["Vedge"], Ip=args["Ip"])
     else
         println("  Running for $(args["tmax"]) s in $(args["timesteps"]) time steps with " * printbc())
-        QO = diffuse(QI, η, args["tmax"], args["timesteps"],
+        QO = diffuse(QI, η, args["tmax"], args["timesteps"];
             Vedge=args["Vedge"], Ip=args["Ip"])
     end
 
@@ -74,7 +79,7 @@ function julia_main()::Cint
     println("  Outputting results to $(args["output_file"])")
 
     open(args["output_file"], "w") do f
-        JSON.print(f, output, 1)
+        return JSON.print(f, output, 1)
     end
 
     println("Exiting QED")

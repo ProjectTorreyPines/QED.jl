@@ -11,5 +11,5 @@ else
     const target_dir = build_dir * "/QED"
 end
 
-PackageCompiler.create_app(package_dir, target_dir, force=true,
+PackageCompiler.create_app(package_dir, target_dir; force=true,
     precompile_execution_file=build_dir * "/generate_precompile.jl")

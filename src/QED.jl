@@ -28,4 +28,7 @@ export diffuse, steady_state, define_T, define_Y
 
 include("app.jl")
 
+const document = Dict()
+document[Symbol(@__MODULE__)] = [name for name in Base.names(@__MODULE__, all=false, imported=false) if name != Symbol(@__MODULE__)]
+
 end
