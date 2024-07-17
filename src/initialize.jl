@@ -70,19 +70,19 @@ Initialize the QED data structure from a dictionary `data` in IMAS format at req
 function from_imas(data::Dict, timeslice=1)
 
     eqt = data["equilibrium"]["time_slice"][timeslice]
-    rho_tor = eqt["profiles_1d"]["rho_tor"]
-    B₀ = data["equilibrium"]["vacuum_toroidal_field"]["b0"][timeslice]
-    gm1 = eqt["profiles_1d"]["gm1"]
-    f = eqt["profiles_1d"]["f"]
-    dvolume_drho_tor = eqt["profiles_1d"]["dvolume_drho_tor"]
-    q = eqt["profiles_1d"]["q"]
-    j_tor = eqt["profiles_1d"]["j_tor"]
-    gm9 = eqt["profiles_1d"]["gm9"]
+    rho_tor = Float64.(eqt["profiles_1d"]["rho_tor"])
+    B₀ =  Float64.(data["equilibrium"]["vacuum_toroidal_field"]["b0"][timeslice])
+    gm1 =  Float64.(eqt["profiles_1d"]["gm1"])
+    f =  Float64.(eqt["profiles_1d"]["f"])
+    dvolume_drho_tor =  Float64.(eqt["profiles_1d"]["dvolume_drho_tor"])
+    q =  Float64.(eqt["profiles_1d"]["q"])
+    j_tor =  Float64.(eqt["profiles_1d"]["j_tor"])
+    gm9 =  Float64.(eqt["profiles_1d"]["gm9"])
 
     ρ_j_non_inductive = nothing
     try
         prof1d = data["core_profiles"]["profiles_1d"][timeslice]
-        ρ_j_non_inductive = (prof1d["grid"]["rho_tor_norm"], prof1d["j_non_inductive"])
+        ρ_j_non_inductive = ( Float64.(prof1d["grid"]["rho_tor_norm"]),  Float64.(prof1d["j_non_inductive"]))
     catch e
         !(e isa KeyError) && rethrow(e)
     end
@@ -178,8 +178,8 @@ Return an interpolation of the resistivity from an IMAS-like dictionary `data` a
 """
 function η_imas(data::Dict, timeslice::Integer=1; use_log::Bool=true)
     prof1d = data["core_profiles"]["profiles_1d"][timeslice]
-    rho = prof1d["grid"]["rho_tor_norm"]
-    η = 1.0 ./ prof1d["conductivity_parallel"]
+    rho = Float64.(prof1d["grid"]["rho_tor_norm"])
+    η = 1.0 ./ Float64.(prof1d["conductivity_parallel"])
     return η_FE(rho, η; use_log)
 end
 

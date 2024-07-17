@@ -57,14 +57,14 @@ end
     ρ = deepcopy(QI_0.ρ)
 
     #Compute matrices
-    T = define_T(QI_0)
-    Y = define_Y(QI_0, η)
+    T = QED.define_T(QI_0)
+    Y = QED.define_Y(QI_0, η)
 
     # Diffuse for 1.0 s with current held fixed
-    QI = diffuse(QI_0, η, 1.0, 10000, T, Y; Np=1000)
+    QI = QED._diffuse(QI_0, η, 1.0, 10000, T, Y; Np=1000)
 
     # Diffuse for 1.0 s with current held fixed
-    QI_2MA = diffuse(QI_0, η, 1.0, 10000, T, Y; θimp=0.75, Ip=2e6, Np=1000)
+    QI_2MA = QED._diffuse(QI_0, η, 1.0, 10000, T, Y; θimp=0.75, Ip=2e6, Np=1000)
 
     file_1 = joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "ods_163303Z27-3910.json")
     transp_1 = JSON.parsefile(file_1)
@@ -184,9 +184,9 @@ end
     η = η_mock()
 
     JBni(x) = -1e6 * (0.9 * sin(2π * x) + 0.1)
-    QI_0 = QED_state(QI_0; JBni=JBni)
+    QI_0 = QED.QED_state(QI_0; JBni=JBni)
 
-    Y = define_Y(QI_0, η)
+    Y = QED.define_Y(QI_0, η)
 
     ρ = QI_0.ρ
 
@@ -203,7 +203,7 @@ end
     end
 
     QI_ss = steady_state(QI_0, η; Vedge=0.0)
-    QI_ss = steady_state(QI_0, η, Y; Vedge=0.0)
+    QI_ss = QED._steady_state(QI_0, η, Y; Vedge=0.0)
     plot!(ρ, JB(QI_ss); label="QED steady-state", linewidth=3, color=:deepskyblue)
 
     display(p)
