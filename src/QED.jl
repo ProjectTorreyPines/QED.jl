@@ -17,6 +17,8 @@ end
 
 const μ₀ = 4e-7 * π
 
+include("build.jl")
+
 include("initialize.jl")
 export from_imas, η_imas, η_FE, η_mock, initialize
 
