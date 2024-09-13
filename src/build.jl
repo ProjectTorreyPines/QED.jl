@@ -2,7 +2,9 @@ struct Waveform{T<:Real}
     f::Function
 end
 
-(W::Waveform{T})(t::Real)::T = W.f(t)
+function (W::Waveform{T})(t::Real)::T where T
+    return W.f(t)
+end
 
 # Constant waveform
 function Waveform(value::T) where {T<:Real}
@@ -31,9 +33,9 @@ mutable struct QED_build{MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatrix{<:Real
     V_waveforms::VWF
     _A::MR2
     _b::VR3
-    function QED_build(Ic<:VR1, Vc<:VR1, Rc<:VR2,
-                       Mcc<:MR1, Mpc::VR2, dMpc_dt<:VR2,
-                       V_waveforms<:VWF, A::MR2, b::VR3) where {MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatrix{<:Real},
+    function QED_build(Ic::VR1, Vc::VR1, Rc::VR2,
+                       Mcc::MR1, Mpc::VR2, dMpc_dt::VR2,
+                       V_waveforms::VWF, A::MR2, b::VR3) where {MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatrix{<:Real},
                                                                 VR1<:AbstractVector{<:Real}, VR2<:AbstractVector{<:Real}, VR3<:AbstractVector{<:Real},
                                                                 VWF<:Vector{<:Waveform}}
         Nc = length(Ic)
@@ -49,7 +51,7 @@ mutable struct QED_build{MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatrix{<:Real
     end
 end
 
-function QED_build(Ic<:VR1, Vc<:VR1, Rc<:VR2, Mcc<:MR1, Mpc::VR2, dMpc_dt<:VR2, V_waveforms<:VWF) where {MR1<:AbstractMatrix{<:Real},
+function QED_build(Ic::VR1, Vc::VR1, Rc::VR2, Mcc::MR1, Mpc::VR2, dMpc_dt::VR2, V_waveforms::VWF) where {MR1<:AbstractMatrix{<:Real},
                                                                                                          VR1<:AbstractVector{<:Real}, VR2<:AbstractVector{<:Real},
                                                                                                          VWF<:Vector{<:Waveform}}
     Nc = length(Ic)
