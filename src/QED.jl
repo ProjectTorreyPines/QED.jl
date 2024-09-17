@@ -28,6 +28,9 @@ export Jt_R, JB, Ip
 include("diffuse.jl")
 export diffuse, steady_state
 
+include("coupled.jl")
+export evolve, evolve!
+
 include("app.jl")
 
 const document = Dict()
