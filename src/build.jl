@@ -51,6 +51,14 @@ mutable struct QED_build{MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatrix{<:Real
     end
 end
 
+function QED_build(Ic::VR1, Vc::VR1, Rc::VR2, Mcc::MR1, V_waveforms::VWF) where {MR1<:AbstractMatrix{<:Real},
+                                                                                 VR1<:AbstractVector{<:Real},VR2<:AbstractVector{<:Real},
+                                                                                 VWF<:Vector{<:Waveform}}
+    Mpc = zero(Rc)
+    dMpc_dt = zero(Rc)
+    return QED_build(Ic, Vc, Rc, Mcc, Mpc, dMpc_dt, V_waveforms)
+end
+
 function QED_build(Ic::VR1, Vc::VR1, Rc::VR2, Mcc::MR1, Mpc::VR2, dMpc_dt::VR2, V_waveforms::VWF) where {MR1<:AbstractMatrix{<:Real},
                                                                                                          VR1<:AbstractVector{<:Real}, VR2<:AbstractVector{<:Real},
                                                                                                          VWF<:Vector{<:Waveform}}
@@ -65,12 +73,15 @@ function update_voltages!(build::QED_build, t::Real)
     for k in eachindex(Vc)
         Vc[k] = WF[k](t)
     end
-    return QB
+    return build
 end
 
 # This does evolution of the build currents, assuming no plasma
 function evolve!(build::QED_build, tmax::Real, Nt::Integer; θimp::Real=0.5)
     Ic = build.Ic
+    Nc = length(Ic)
+    Is = zeros(Nc, Nt+1)
+    Is[:,1] .= Ic
 
     Δt = tmax / Nt
     inv_Δt = 1.0 / Δt
@@ -86,19 +97,20 @@ function evolve!(build::QED_build, tmax::Real, Nt::Integer; θimp::Real=0.5)
         tθ = (n - θexp) * Δt # θ-implicit time
         b = build_rhs!(build, tθ, inv_Δt, θexp)
         mul!(Ic, invA, b)
+        Is[:,n+1] .= Ic
     end
-    return build
+    return Is
 end
 
 function build_matrix!(build::QED_build, inv_Δt::Real, θimp::Real)
-    Rc, Mcc, A = build.Rc, build.Mcc, build.A
+    Rc, Mcc, A = build.Rc, build.Mcc, build._A
     A .= inv_Δt .* Mcc
     (θimp != 0.0) && (A.+= θimp .* Diagonal(Rc))
     return A
 end
 
 function build_rhs!(build::QED_build, t, inv_Δt::Real, θexp::Real)
-    Ic, Vc, Rc, Mcc, b = build.Ic, build.Vc, build.Rc, build.Mcc, build.b
+    Ic, Vc, Rc, Mcc, b = build.Ic, build.Vc, build.Rc, build.Mcc, build._b
 
     # explicit inductive and resistive terms
     mul!(b, Mcc, Ic)
