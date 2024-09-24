@@ -60,9 +60,9 @@ Keyword arguments
 """
 function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
     θimp::Real=0.5,
-    debug::Bool=false, Nd::Union{Nothing,Integer}=nothing)
+    debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
 
-    Ic, Mpc, dMpc_dt = build.Ic, build.Mpc, build.dMpc_dt
+    Ic, Vni, Rp, Lp, Mpc, dMpc_dt = build.Ic, build.Vni, build.Rp, build.Lp, build.Mpc, build.dMpc_dt
 
     T = define_T(QI)
     Y = define_Y(QI, η)
@@ -75,16 +75,16 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
     # Factor that translates ι to Ip:  Ip = γ * ι at ρ=1
     γ = dΦ_dρ(QI, 1) * QI.dV_dρ(1) * fsa_∇ρ²_R²(QI, 1)  / ((2π)^2 * μ₀)
 
-    Np = length(ρ)
+    Ni = 2length(ρ)
     Nc = length(build.Ic)
-    Ntot = Np + Nc
+    Ntot = Ni + Nc
 
     A = zeros(Ntot, Ntot)
 
     ######################
     # Plasma-only matrix
     ######################
-    @views Ap = A[1:Np, 1:Np]
+    @views Ap = A[1:Ni, 1:Ni]
 
     # A = T / Δt - θimp * Y
     Ap .= T .* inv_Δt
@@ -94,61 +94,64 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
     Ap[1, :] .= 0.0
     Ap[1, 1] = 1.0
 
+    Ap[end, :] .= 0.0
+    Ap[end, end] = γ * (Lp * inv_Δt + θimp * Rp)
+
     ######################
     # Build-only matrix
     ######################
-    @views Ab = A[Np+1:end, Np+1:end]
+    @views Ab = A[Ni+1:end, Ni+1:end]
     Ab .= build_matrix!(build, inv_Δt, θimp)
+
 
     #############################
     # Coupling - plasma to build
     #############################
-
-    # Edge loop voltage boundary condition
-    # α d(β*ι)/dρ = Vloop at ρ=1
-    Ap[end, :] .= 0.0
-    Ap[end, end] = αdβ_dρ(1.0, QI, η)
-    Ap[end, end-1] = αβ(1.0, QI, η)
+    p2b = true
 
     # Forward part of Vloop = sum(Mpc * dIc/dt)
-    A[Np, Np+1:end] .= .-Mpc .* inv_Δt
+    A[Ni, Ni+1:end] .= p2b ? Mpc .* inv_Δt : 0.0
 
     #############################
     # Coupling - build to plasma
     #############################
+    b2p = true
 
-    # Forward part of Mpc * dIp_dt
-    A[Np+1:end, Np] .= γ .* Mpc .* inv_Δt
+    if b2p
+        # Forward part of Mpc * dIp_dt
+        A[Ni+1:end, Ni] .= γ .* Mpc .* inv_Δt
 
-    # Implicit part of dMpc_dt * Ip
-    (θimp != 0.0) && (A[Np+1:end, Np] .+= θimp .* γ .* dMpc_dt)
-
+        # Implicit part of dMpc_dt * Ip
+        (θimp != 0.0) && (A[Ni+1:end, Ni] .+= θimp .* γ .* dMpc_dt)
+    else
+        A[Ni+1:end, Ni] .= 0.0
+    end
 
     # invert A matrix only once, outside of time stepping loop
     # We could factor and do linear solve each time,
     invA = inv(A)
 
     if debug
-        Nd === nothing && (Nd = Int(floor(Nt^0.75)))
-        Ncol = (mod(Nt, Np) == 0) ? Nt ÷ Nd + 2 : Nt ÷ Nd + 3
+        Np === nothing && (Np = Int(floor(Nt^0.75)))
+        Ncol = (mod(Nt, Np) == 0) ? Nt ÷ Np + 2 : Nt ÷ Np + 3
         ιs = Vector{FE_rep}(undef, Ncol - 2)
         Is = zeros(Nc, Ncol - 2)
         times = zeros(Ncol - 2)
-        nd = 0
+        np = 0
     end
     Sni = define_Sni(QI, η)
 
     b = zeros(Ntot)
-    @views bp = b[1:Np]
-    @views bb = b[Np+1:end]
+    @views bp = b[1:Ni]
+    @views bb = b[Ni+1:end]
 
     c = zeros(Ntot)
-    @views cp = c[1:Np]
-    @views cb = c[Np+1:end]
+    @views cp = c[1:Ni]
+    @views cb = c[Ni+1:end]
     cp .= QI.ι.coeffs
     cb .= build.Ic
 
-    btmp = zeros(Np)
+    btmp = zeros(Ni)
 
     # We advance c, the coefficients of ι,
     #   but we never actually need ι until the end (except for debugging)
@@ -166,42 +169,44 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
             bp .+= btmp
         end
 
-        # On-axis boundary condition
-        bp[1] = 0.0
-
         # Edge boundary condition
-        bp[end] = -sum(Mpc[k] .* Ic[k] for k in 1:Nc) * inv_Δt
+        bp[end] = Vni + γ * (Lp * inv_Δt - θexp * Rp) * cp[end]
+        bp[end] += p2b ? sum(Mpc[k] * Ic[k] for k in 1:Nc) * inv_Δt : 0.0
 
         # Non-inductive source
         Sni !== nothing && (bp .+= Sni)
+
+        # On-axis boundary condition
+        bp[1] = 0.0
 
         ######################
         # Build part
         ######################
         tθ = (n - θexp) * Δt # θ-implicit time
         bb .= build_rhs!(build, tθ, inv_Δt, θexp)
-        bb .+= γ .* (inv_Δt .* Mpc .- θexp .* dMpc_dt) .* cp[end]
+        if b2p
+            bb .+= γ .* (inv_Δt .* Mpc .- θexp .* dMpc_dt) .* cp[end]
+        end
 
         mul!(c, invA, b)
 
-        QI.ι.coeffs .= cp
-        build.Ic    .= cb
+        build.Ic .= cb
 
-        if debug && ((mod(n, Nd) == 0) || (n == Nt))
-            nd += 1
-            times[nd] = round(n / inv_Δt; digits=3)
-            ιs[nd] = FE_rep(ρ, collect(cp))
-            Is[:, nd] .= cb
+        if debug && ((mod(n, Np) == 0) || (n == Nt))
+            np += 1
+            times[np] = round(n / inv_Δt; digits=3)
+            ιs[np] = FE_rep(ρ, collect(cp))
+            Is[:, np] .= cb
         end
 
     end
 
-    ι = FE_rep(ρ, c)
+    ι = FE_rep(ρ, collect(cp))
     JtoR = Jt_R(QI; ι=ι)
 
     if debug
         plot_JtoR_profiles(QI, ιs, times, Ncol)
-        display(plot(times, Is', lw=2, palette=Plots.palette(:plasma, Ncol)))
+        display(Plots.plot(times, Is', lw=2, palette=Plots.palette(:plasma, Ncol), legend=nothing))
     end
     return QED_state(QI, ι, JtoR)
 end
