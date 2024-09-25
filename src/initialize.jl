@@ -1,4 +1,4 @@
-mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep}
+mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep,B<:Union{Nothing, QED_build}}
     ρ::U
     dΡ_dρ::T
     B₀::T
@@ -10,7 +10,10 @@ mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep}
     χ::S
     JBni::Union{Nothing,S}
     _ι_eq::S
+    build::B
 end
+
+QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq) = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq, nothing)
 
 @inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
 

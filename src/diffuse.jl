@@ -197,7 +197,7 @@ function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y
     A[1, :] .= 0.0
     A[1, 1] = 1.0
 
-    # Edge boundary condtions
+    # Edge boundary conditions
     A[end, :] .= 0.0
     if Vedge !== nothing
         # Constant loop voltage
@@ -248,7 +248,7 @@ function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y
         # On-axis boundary condition
         b[1] = 0.0
 
-        # Edge boundary condtions
+        # Edge boundary conditions
         if Vedge !== nothing
             # Constant loop voltage
             # α d(β*ι)/dρ = Vedge at ρ=1
