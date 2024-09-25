@@ -19,7 +19,6 @@ function build_rhs!(build::QED_build, t, inv_Δt::Real, θexp::Real)
     return b
 end
 
-
 # This does evolution of the build currents, assuming no plasma
 function evolve!(build::QED_build, tmax::Real, Nt::Integer; θimp::Real=0.5)
     Ic = build.Ic
@@ -101,7 +100,9 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
     # Build-only matrix
     ######################
     @views Ab = A[Ni+1:end, Ni+1:end]
-    Ab .= build_matrix!(build, inv_Δt, θimp)
+
+    # N.B. - Normalize to γ to improve condition number
+    Ab .= build_matrix!(build, inv_Δt, θimp) .* γ
 
 
     #############################
@@ -110,7 +111,8 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
     p2b = true
 
     # Forward part of Vloop = sum(Mpc * dIc/dt)
-    A[Ni, Ni+1:end] .= p2b ? Mpc .* inv_Δt : 0.0
+    # N.B. - Normalized to γ to improve condition number
+    A[Ni, Ni+1:end] .= (p2b ?  Mpc .* inv_Δt : 0.0) .* γ
 
     #############################
     # Coupling - build to plasma
@@ -135,7 +137,7 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
         Np === nothing && (Np = Int(floor(Nt^0.75)))
         Ncol = (mod(Nt, Np) == 0) ? Nt ÷ Np + 2 : Nt ÷ Np + 3
         ιs = Vector{FE_rep}(undef, Ncol - 2)
-        Is = zeros(Nc, Ncol - 2)
+        Is = zeros(Nc+1, Ncol - 2)
         times = zeros(Ncol - 2)
         np = 0
     end
@@ -147,9 +149,11 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
 
     c = zeros(Ntot)
     @views cp = c[1:Ni]
-    @views cb = c[Ni+1:end]
     cp .= QI.ι.coeffs
-    cb .= build.Ic
+
+    # N.B. - Normalized to γ to improve condition number
+    @views cb = c[Ni+1:end]
+    cb .= build.Ic ./ γ
 
     btmp = zeros(Ni)
 
@@ -169,15 +173,15 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
             bp .+= btmp
         end
 
-        # Edge boundary condition
-        bp[end] = Vni + γ * (Lp * inv_Δt - θexp * Rp) * cp[end]
-        bp[end] += p2b ? sum(Mpc[k] * Ic[k] for k in 1:Nc) * inv_Δt : 0.0
-
         # Non-inductive source
         Sni !== nothing && (bp .+= Sni)
 
         # On-axis boundary condition
         bp[1] = 0.0
+
+        # Edge boundary condition
+        bp[end] = Vni + γ * (Lp * inv_Δt - θexp * Rp) * cp[end]
+        bp[end] += p2b ? sum(Mpc[k] * build.Ic[k] for k in 1:Nc) * inv_Δt : 0.0
 
         ######################
         # Build part
@@ -190,13 +194,16 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
 
         mul!(c, invA, b)
 
-        build.Ic .= cb
+        # N.B. - Normalized to γ to improve condition number
+        build.Ic .= cb .* γ
 
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1
             times[np] = round(n / inv_Δt; digits=3)
             ιs[np] = FE_rep(ρ, collect(cp))
-            Is[:, np] .= cb
+            # N.B. - Normalized to γ to improve condition number
+            Is[1, np] = γ * cp[end]
+            Is[2:end, np] .= cb .* γ
         end
 
     end
@@ -206,7 +213,7 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
 
     if debug
         plot_JtoR_profiles(QI, ιs, times, Ncol)
-        display(Plots.plot(times, Is', lw=2, palette=Plots.palette(:plasma, Ncol), legend=nothing))
+        display(Plots.plot(times, Is', lw=2, palette=Plots.palette(:plasma, size(Is)[1]), legend=nothing))
     end
     return QED_state(QI, ι, JtoR)
 end
