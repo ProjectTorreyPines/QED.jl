@@ -12,9 +12,9 @@ function Waveform(value::T) where {T<:Real}
 end
 
 # Interpolated waveform
-function Waveform(ts::AbstractVector{T}, values::AbstractVector{S}; order=:cubic) where {T<:Real, S<:Real}
+function Waveform(ts::AbstractVector{T}, values::AbstractVector{S}) where {T<:Real, S<:Real}
     TS = promote_type(T, S)
-    fitp = IMAS.interp1d(ts, values, order)
+    fitp = DataInterpolations.CubicSpline(values, ts; extrapolate=true)
     return Waveform{TS}(t -> fitp(t))
 end
 
