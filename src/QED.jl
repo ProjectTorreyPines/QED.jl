@@ -4,6 +4,7 @@ module QED
 
 using FiniteElementHermite
 using BandedMatrices
+import DataInterpolations
 import ForwardDiff
 import JSON
 using ArgParse
