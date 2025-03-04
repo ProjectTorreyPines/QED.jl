@@ -14,7 +14,7 @@ end
 # Interpolated waveform
 function Waveform(ts::AbstractVector{T}, values::AbstractVector{S}) where {T<:Real, S<:Real}
     TS = promote_type(T, S)
-    fitp = DataInterpolations.CubicSpline(values, ts; extrapolate=true)
+    fitp = DataInterpolations.CubicSpline(values, ts; extrapolation=ExtrapolationType.Extension)
     return Waveform{TS}(t -> fitp(t))
 end
 
