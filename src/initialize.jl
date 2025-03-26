@@ -154,6 +154,10 @@ function initialize(rho_tor::AbstractVector{<:Real},
     tmp[1] = 0.0
     dV_dρ = FE(ρ, tmp)
 
+    tmp = gm2 ./ (dΡ_dρ ^ 2)
+    @show tmp[end]
+    fsa_∇ρ²_R² = FE(ρ, tmp)
+
     JtoR = FE(ρ, j_tor .* gm9)
 
     if ρ_j_non_inductive === nothing
@@ -165,10 +169,10 @@ function initialize(rho_tor::AbstractVector{<:Real},
 
     if ρ_grid !== nothing
         ι = FE(ρ_grid, (ρ, 1.0 ./ q))
-        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, FE(ρ, gm2); JBni)
+        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, fsa_∇ρ²_R²; JBni)
     else
         ι = FE(ρ, 1.0 ./ q)
-        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, FE(ρ, gm2); JBni)
+        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, fsa_∇ρ²_R²; JBni)
     end
 end
 
