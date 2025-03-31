@@ -1,7 +1,7 @@
 name = "QED"
 uuid = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
 authors = ["Brendan Lyons <lyonsbc@fusion.gat.com>"]
-version = "1.4.3"
+version = "1.4.4"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -16,7 +16,7 @@ Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 [compat]
 ArgParse = "1"
 BandedMatrices = "1"
-DataInterpolations = "7"
+DataInterpolations = "7, 8"
 FiniteElementHermite = "0.2, 1"
 ForwardDiff = "0.10"
 JSON = "0.21"
