@@ -8,25 +8,28 @@ mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep,B<:Union{No
     ι::S
     JtoR::S
     χ::S
+    gm2::S
     JBni::Union{Nothing,S}
     _ι_eq::S
     build::B
 end
 
-QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq) = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq, nothing)
+QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, gm2, JBni, _ι_eq) = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, gm2, JBni, _ι_eq, nothing)
 
 @inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
 
 @inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε=1e-3)
-    r == 0 && return 2 * fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε) # Linearly extrapolate to axis
-    return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
+    #r == 0 && return 2 * fsa_∇ρ²_R²(QI, ε) - fsa_∇ρ²_R²(QI, 2ε) # Linearly extrapolate to axis
+    #return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
+    return QI.gm2(r)
 end
 
 @inline function D_fsa_∇ρ²_R²(QI::QED_state, x::Real)
-    return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
+    #return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
+    return D(QI.gm2, x)
 end
 
-function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing,
+function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, gm2; JBni=nothing,
     x=1.0 .- (1.0 .- range(0, 1; length=length(ρ))) .^ 2)
 
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
@@ -39,14 +42,14 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
     C[1:2:end] .= ξ.(x)         # derivative of χ is value of ξ
     χ = FE_rep(x, C)
 
-    return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι)
+    return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, gm2, JBni, ι)
 end
 
 function QED_state(QI::QED_state, ι, JtoR)
     ι isa AbstractVector && (ι = FE(QI.ρ, ι))
     JtoR isa AbstractVector && (JtoR = FE(QI.ρ, JtoR))
 
-    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.χ, QI.JBni, QI._ι_eq)
+    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.χ, QI.gm2, QI.JBni, QI._ι_eq)
 end
 
 function QED_state(QI::QED_state; JBni=nothing)
@@ -55,7 +58,7 @@ function QED_state(QI::QED_state; JBni=nothing)
     elseif JBni !== nothing
         JBni = FE(QI.ρ, JBni.(QI.ρ))
     end
-    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.χ, JBni, QI._ι_eq)
+    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.χ, QI.gm2, JBni, QI._ι_eq)
 end
 
 """
@@ -81,6 +84,7 @@ function from_imas(data::Dict, timeslice=1)
     q =  Float64.(eqt["profiles_1d"]["q"])
     j_tor =  Float64.(eqt["profiles_1d"]["j_tor"])
     gm9 =  Float64.(eqt["profiles_1d"]["gm9"])
+    gm2 = Float64.(eqt["profiles_1d"]["gm2"])
 
     ρ_j_non_inductive = nothing
     try
@@ -90,7 +94,7 @@ function from_imas(data::Dict, timeslice=1)
         !(e isa KeyError) && rethrow(e)
     end
 
-    return initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
+    return initialize(rho_tor, B₀, gm1, f, dvolume_drho_tor, q, j_tor, gm9, gm2; ρ_j_non_inductive)
 end
 
 """
@@ -101,7 +105,8 @@ end
                dvolume_drho_tor::AbstractVector{<:Real},
                q::AbstractVector{<:Real},
                j_tor::AbstractVector{<:Real},
-               gm9::AbstractVector{<:Real};
+               gm9::AbstractVector{<:Real},
+               gm2::AbstractVector{<:Real};
                ρ_j_non_inductive::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
                ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing)
 
@@ -116,6 +121,7 @@ dvolume_drho_tor = eqt["profiles_1d"]["dvolume_drho_tor"]
 q = eqt["profiles_1d"]["q"]
 j_tor = eqt["profiles_1d"]["j_tor"]
 gm9 = eqt["profiles_1d"]["gm9"]
+gm2 = eqt["profiles_1d"]["gm2"]
 ```
 Keyword arguments:
 `ρ_j_non_inductive` - a tuple giving a grid and the noninductive current
@@ -129,7 +135,8 @@ function initialize(rho_tor::AbstractVector{<:Real},
                     dvolume_drho_tor::AbstractVector{<:Real},
                     q::AbstractVector{<:Real},
                     j_tor::AbstractVector{<:Real},
-                    gm9::AbstractVector{<:Real};
+                    gm9::AbstractVector{<:Real},
+                    gm2::AbstractVector{<:Real};
                     ρ_j_non_inductive::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
                     ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing)
 
@@ -147,6 +154,10 @@ function initialize(rho_tor::AbstractVector{<:Real},
     tmp[1] = 0.0
     dV_dρ = FE(ρ, tmp)
 
+    tmp = gm2 ./ (dΡ_dρ ^ 2)
+    @show tmp[end]
+    fsa_∇ρ²_R² = FE(ρ, tmp)
+
     JtoR = FE(ρ, j_tor .* gm9)
 
     if ρ_j_non_inductive === nothing
@@ -158,10 +169,10 @@ function initialize(rho_tor::AbstractVector{<:Real},
 
     if ρ_grid !== nothing
         ι = FE(ρ_grid, (ρ, 1.0 ./ q))
-        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni)
+        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, fsa_∇ρ²_R²; JBni)
     else
         ι = FE(ρ, 1.0 ./ q)
-        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni)
+        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, fsa_∇ρ²_R²; JBni)
     end
 end
 
