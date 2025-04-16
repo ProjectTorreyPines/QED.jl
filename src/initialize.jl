@@ -155,7 +155,6 @@ function initialize(rho_tor::AbstractVector{<:Real},
     dV_dρ = FE(ρ, tmp)
 
     tmp = gm2 ./ (dΡ_dρ ^ 2)
-    @show tmp[end]
     fsa_∇ρ²_R² = FE(ρ, tmp)
 
     JtoR = FE(ρ, j_tor .* gm9)
