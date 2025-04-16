@@ -26,7 +26,7 @@ end
     return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
 end
 
-function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing,
+function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing, Ip0=nothing,
     x=1.0 .- (1.0 .- range(0, 1; length=length(ρ))) .^ 2)
 
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
@@ -39,7 +39,16 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
     C[1:2:end] .= ξ.(x)         # derivative of χ is value of ξ
     χ = FE_rep(x, C)
 
-    return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι)
+    Q = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι)
+
+    # Scale the last value of χ to match the desired Ip0
+    # Can modify the value in C directly
+    if Ip0 !== nothing
+        fac = Ip0 / Ip(Q)
+        C[end] *= fac
+    end
+
+    return Q
 end
 
 function QED_state(QI::QED_state, ι, JtoR)
@@ -131,7 +140,8 @@ function initialize(rho_tor::AbstractVector{<:Real},
                     j_tor::AbstractVector{<:Real},
                     gm9::AbstractVector{<:Real};
                     ρ_j_non_inductive::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
-                    ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing)
+                    ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing,
+                    Ip0::Union{Nothing,Real}=nothing)
 
     dΡ_dρ = rho_tor[end]
 
@@ -158,10 +168,10 @@ function initialize(rho_tor::AbstractVector{<:Real},
 
     if ρ_grid !== nothing
         ι = FE(ρ_grid, (ρ, 1.0 ./ q))
-        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni)
+        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0)
     else
         ι = FE(ρ, 1.0 ./ q)
-        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni)
+        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0)
     end
 end
 
