@@ -202,13 +202,17 @@ end
 Return a cubic-Hermite finite-element interpolation of the resistivity `η` on grid `rho`
 `use_log=true` (default) interpolates on the log of the resistivity
 """
-function η_FE(rho::AbstractVector{<:Real}, η::AbstractVector{<:Real}; use_log::Bool=true)
-    rtype = typeof(η[1])
+function η_FE(rho::AbstractVector{S}, η::AbstractVector{T}; use_log::Bool=true) where {S<:Real,T<:Real}
+    rhot = S.(rho)
+    return η_FE(rhot, η; use_log)
+end
+
+function η_FE(rho::AbstractVector{T}, η::AbstractVector{T}; use_log::Bool=true) where {T<:Real}
     if use_log
-        log_η = FE(rtype.(rho), log.(η))
+        log_η = FE(rho, log.(η))
         return x -> exp(log_η(x))
     else
-        return FE(rtype.(rho), η)
+        return FE(rho, η)
     end
 end
 

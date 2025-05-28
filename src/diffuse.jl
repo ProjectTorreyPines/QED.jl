@@ -125,17 +125,17 @@ function define_Y!(Y::BandedMatrix, ab, adb_dρ, ρ::AbstractVector{<:Real}, ord
     return Y
 end
 
-function define_Sni(QI::QED_state, η; order::Union{Nothing,Integer}=5)
+function define_Sni(QI::QED_state, η::F; order::Union{Nothing,Integer}=5) where {F}
 
     QI.JBni === nothing && return nothing
 
     ρ = QI.ρ
     N = length(ρ)
 
-    V(x) = Vni(QI, η, x)
+    V = x -> Vni(QI, η, x)
 
     Sni = zeros(2N)
-    for m in 1:N
+    Threads.@threads for m in 1:N
         Sni[2m-1] = inner_product(V, D_νo, m, ρ, order)
         Sni[2m] = inner_product(V, D_νe, m, ρ, order)
     end
@@ -190,7 +190,7 @@ function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y
         A = deepcopy(T)
         rmul!(A, inv_Δt)
     end
-    (θimp != 0) && (A .-= θimp .* Y)
+    (θimp != 0) && axpy!(-θimp, Y, A)  # this is A -= θimp * Y)
 
     # On-axis boundary conditions
     # ι' = 0
@@ -221,11 +221,14 @@ function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y
     # invert A matrix only once, outside of time stepping loop
     # We could factor and do linear solve each time,
     #   but this seems faster (because small matrix)
-    invA = inv(A)
 
     c = deepcopy(QI.ι.coeffs)
     b = zero(c)
     btmp = zero(c)
+
+    # Create linear problem and solver
+    prob = LinearSolve.LinearProblem(A, b)
+    linsolve = LinearSolve.init(prob)
 
     # We advance c, the coefficients of ι,
     #   but we never actually need ι until the end (except for debugging)
@@ -265,7 +268,9 @@ function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y
             end
         end
 
-        mul!(c, invA, b)
+        linsolve.b .= b
+        sol = LinearSolve.solve!(linsolve)
+        c .= sol.u
 
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1

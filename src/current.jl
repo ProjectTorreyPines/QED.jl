@@ -58,6 +58,6 @@ end
 Return the loop voltage associated with the non-inductive current for QED_state `QI`
 with (callable) resitivity `η` at `ρ=x`
 """
-function Vni(QI::QED_state, η, x)
+@inline function Vni(QI::QED_state, η::F, x) where {F}
     return 2π * η(x) * QI.JBni(x) / (QI.F(x) * QI.fsa_R⁻²(x))
 end
