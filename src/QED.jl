@@ -6,7 +6,8 @@ import DataInterpolations: DataInterpolations, ExtrapolationType
 import ForwardDiff
 import JSON
 using ArgParse
-import LinearAlgebra: mul!, rmul!, Diagonal
+import LinearAlgebra: mul!, rmul!, Diagonal, axpy!
+import LinearSolve
 
 using Requires
 
