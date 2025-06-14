@@ -1,4 +1,4 @@
-module TEQUILA_Ext
+module IMAS_Ext
 
 import QED, IMAS
 
