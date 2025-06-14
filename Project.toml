@@ -14,12 +14,19 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 
+[weakdeps]
+IMAS = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
+
+[extensions]
+IMAS_Ext = "IMAS"
+
 [compat]
 ArgParse = "1"
 BandedMatrices = "1"
 DataInterpolations = "7, 8"
 FiniteElementHermite = "0.2, 1"
 ForwardDiff = "0.10"
+IMAS = "5"
 JSON = "0.21"
 LinearSolve = "3"
 Requires = "1"
