@@ -226,3 +226,7 @@ function η_mock(; T0::Real=3000.0, Tp::Real=500.0, Ts::Real=100.0)
     Te(x) = 0.5 * (Tp + (T0 - Tp) * (1.0 - x) - Ts) * (1.0 - tanh((x - 0.95) / 0.025)) + Ts
     return x -> 3.1e-3 / Te(x)^1.5
 end
+
+
+# dummy for IMAS_Ext
+function η_JBni_sawteeth end
