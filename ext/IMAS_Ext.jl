@@ -8,7 +8,9 @@ import IMAS.IMASutils: argmin_abs
 
 Setup QED from data in IMAS `dd`
 """
-function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
+function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
+                        uniform_rho::Int=length(dd.core_profiles.profiles_1d[].grid.rho_tor_norm),
+                        j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
 
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
