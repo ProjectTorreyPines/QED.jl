@@ -98,8 +98,7 @@ returns
 
   - non-inductive profile with flattening of the current inside of the inversion radius
 """
-function QED.η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64;
-                             conductivity_parallel::Vector{T}=cp1d.conductivity_parallel, use_log::Bool=true) where {T<:Real}
+function QED.η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, conductivity_parallel::Vector{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
     rho = cp1d.grid.rho_tor_norm
     η = 1.0 ./ conductivity_parallel
 
