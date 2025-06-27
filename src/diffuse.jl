@@ -49,13 +49,9 @@ function αβ(x::Real, QI::QED_state, η)
     return η(x) * dΦ_dρ(QI, x) * fsa_∇ρ²_R²(QI, x) / (μ₀ * QI.fsa_R⁻²(x))
 end
 
-function αdβ_dρ(x::Real, QI::QED_state, η)
+function αdβ_dρ(x::T, QI::QED_state, η) where {T<:Real}
 
-    if x != 0
-        γ = x * (D(QI.dV_dρ, x) / QI.dV_dρ(x) - D(QI.F, x) / QI.F(x))
-    else
-        γ = 1.0
-    end
+    γ = (x==0.0) ? one(T) : x * (D(QI.dV_dρ, x) / QI.dV_dρ(x) - D(QI.F, x) / QI.F(x))
     abp = (1.0 + γ) * fsa_∇ρ²_R²(QI, x) + x * D_fsa_∇ρ²_R²(QI, x)
     return 2π * QI.B₀ * QI.dΡ_dρ^2 * η(x) * abp / (μ₀ * QI.fsa_R⁻²(x))
 end
