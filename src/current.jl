@@ -20,7 +20,8 @@ function Jt_R!(J::AbstractVector{<:Real}, QI::QED_state; ι::FE_rep=QI.ι, ρ::A
     χ(x) = x * ι(x) * fsa_∇ρ²_R²(QI, x)
     dχ(x) = ForwardDiff.derivative(χ, x)
 
-    for (k, x) in enumerate(ρ)
+    Threads.@threads for k in eachindex(ρ)
+        x = ρ[k]
         if x == 0
             γ = 1.0
         else
