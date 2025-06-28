@@ -54,7 +54,7 @@ function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
         else
             rho_qdes = eqt.profiles_1d.rho_tor_norm[i_qdes]
         end
-        _, j_non_inductive = QED.η_JBni_sawteeth(cp1d, cp1d.conductivity_parallel, cp1d.j_non_inductive, rho_qdes)
+        _, j_non_inductive = QED.η_JBni_sawteeth(cp1d, cp1d.j_non_inductive, rho_qdes)
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, j_non_inductive)
     end
 
