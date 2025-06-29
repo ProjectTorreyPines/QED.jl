@@ -31,13 +31,14 @@ mutable struct QED_build{T<:Real, MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatr
     Vni::T
     Rp::T
     Lp::T
+    dLp_dt::T
     Mpc::VR2
     dMpc_dt::VR2
     V_waveforms::VWF
     _A::MR2
     _b::VR3
     function QED_build(Ic::VR1, Vc::VR1, Rc::VR2,
-                       Mcc::MR1, Vni::T, Rp::T, Lp::T, Mpc::VR2, dMpc_dt::VR2,
+                       Mcc::MR1, Vni::T, Rp::T, Lp::T, dLp_dt::T, Mpc::VR2, dMpc_dt::VR2,
                        V_waveforms::VWF, A::MR2, b::VR3) where {T<:Real, MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatrix{<:Real},
                                                                 VR1<:AbstractVector{<:Real}, VR2<:AbstractVector{<:Real}, VR3<:AbstractVector{<:Real},
                                                                 VWF<:Vector{<:Waveform}}
@@ -50,7 +51,7 @@ mutable struct QED_build{T<:Real, MR1<:AbstractMatrix{<:Real}, MR2<:AbstractMatr
         @assert length(V_waveforms) === Nc
         @assert size(A) === (Nc, Nc)
         @assert length(b) === Nc
-        return new{T, MR1, MR2, VR1, VR2, VR3, VWF}(Ic, Vc, Rc, Mcc, Vni, Rp, Lp, Mpc, dMpc_dt, V_waveforms, A, b)
+        return new{T, MR1, MR2, VR1, VR2, VR3, VWF}(Ic, Vc, Rc, Mcc, Vni, Rp, Lp, dLp_dt, Mpc, dMpc_dt, V_waveforms, A, b)
     end
 end
 
@@ -63,13 +64,14 @@ function QED_build(Ic::VR1, Vc::VR1, Rc::VR2, Mcc::MR1, V_waveforms::VWF) where 
 end
 
 function QED_build(Ic::VR1, Vc::VR1, Rc::VR2, Mcc::MR1,
-                   Vni::T, Rp::T, Lp::T, Mpc::VR2, dMpc_dt::VR2, V_waveforms::VWF) where {T<:Real, MR1<:AbstractMatrix{<:Real},
-                                                                                          VR1<:AbstractVector{<:Real}, VR2<:AbstractVector{<:Real},
-                                                                                          VWF<:Vector{<:Waveform}}
+                   Vni::T, Rp::T, Lp::T, dLp_dt::T,
+                   Mpc::VR2, dMpc_dt::VR2, V_waveforms::VWF) where {T<:Real, MR1<:AbstractMatrix{<:Real},
+                                                                    VR1<:AbstractVector{<:Real}, VR2<:AbstractVector{<:Real},
+                                                                    VWF<:Vector{<:Waveform}}
     Nc = length(Ic)
     A = zeros(promote_type(Float64, T, eltype(VR2), eltype(MR1)), Nc, Nc)
     b = zeros(promote_type(Float64, T, eltype(VR1), eltype(VR2), eltype(MR1)), Nc)
-    return QED_build(Ic, Vc, Rc, Mcc, Vni, Rp, Lp, Mpc, dMpc_dt, V_waveforms, A, b)
+    return QED_build(Ic, Vc, Rc, Mcc, Vni, Rp, Lp, dLp_dt, Mpc, dMpc_dt, V_waveforms, A, b)
 end
 
 function update_voltages!(build::QED_build, t::Real)
