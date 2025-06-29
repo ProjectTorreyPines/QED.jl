@@ -1,7 +1,7 @@
 name = "QED"
 uuid = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
 authors = ["Brendan Lyons <lyonsbc@fusion.gat.com>"]
-version = "1.5.1"
+version = "1.6.0"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
