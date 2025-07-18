@@ -20,7 +20,8 @@ function Jt_R!(J::AbstractVector{<:Real}, QI::QED_state; ι::FE_rep=QI.ι, ρ::A
     χ(x) = x * ι(x) * fsa_∇ρ²_R²(QI, x)
     dχ(x) = ForwardDiff.derivative(χ, x)
 
-    for (k, x) in enumerate(ρ)
+    Threads.@threads for k in eachindex(ρ)
+        x = ρ[k]
         if x == 0
             γ = 1.0
         else
@@ -58,6 +59,6 @@ end
 Return the loop voltage associated with the non-inductive current for QED_state `QI`
 with (callable) resitivity `η` at `ρ=x`
 """
-function Vni(QI::QED_state, η, x)
+@inline function Vni(QI::QED_state, η::F, x) where {F}
     return 2π * η(x) * QI.JBni(x) / (QI.F(x) * QI.fsa_R⁻²(x))
 end
