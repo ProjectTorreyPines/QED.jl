@@ -61,7 +61,7 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
     θimp::Real=0.5,
     debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
 
-    Ic, Vni, Rp, Lp, Mpc, dMpc_dt = build.Ic, build.Vni, build.Rp, build.Lp, build.Mpc, build.dMpc_dt
+    Ic, Vni, Rp, Lp, dLp_dt, Mpc, dMpc_dt = build.Ic, build.Vni, build.Rp, build.Lp, build.dLp_dt, build.Mpc, build.dMpc_dt
 
     T = define_T(QI)
     Y = define_Y(QI, η)
@@ -94,7 +94,7 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
     Ap[1, 1] = 1.0
 
     Ap[end, :] .= 0.0
-    Ap[end, end] = γ * (Lp * inv_Δt + θimp * Rp)
+    Ap[end, end] = γ * (Lp * inv_Δt + θimp * (dLp_dt + Rp))
 
     ######################
     # Build-only matrix
@@ -180,7 +180,7 @@ function evolve(QI::QED_state, η, build::QED_build, tmax::Real, Nt::Integer;
         bp[1] = 0.0
 
         # Edge boundary condition
-        bp[end] = Vni + γ * (Lp * inv_Δt - θexp * Rp) * cp[end]
+        bp[end] = Vni + γ * (Lp * inv_Δt - θexp * (dLp_dt + Rp)) * cp[end]
         bp[end] += p2b ? sum(Mpc[k] * build.Ic[k] for k in 1:Nc) * inv_Δt : 0.0
 
         ######################
