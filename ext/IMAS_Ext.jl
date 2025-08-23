@@ -34,9 +34,9 @@ function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
     end
 
     if ip_from === :equilibrium
-        Ip0 = IMAS.get_from(dd, Val{:ip}, :equilibrium)
+        Ip0 = IMAS.get_from(dd, Val(:ip), :equilibrium)
     elseif ip_from === :core_profiles
-        Ip0 = IMAS.get_from(dd, Val{:ip}, :core_profiles)
+        Ip0 = IMAS.get_from(dd, Val(:ip), :core_profiles)
     elseif typeof(ip_from) <: Real
         Ip0 = ip_from
     else
