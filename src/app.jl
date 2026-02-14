@@ -3,36 +3,30 @@ function parse_commandline()
 
     @add_arg_table! s begin
         "--tmax", "-T"
-        help = "Maximum time to diffuse (seconds)"
-        arg_type = typeof(0.0)
-        default = Inf
+            help = "Maximum time to diffuse (seconds)"
+            arg_type = typeof(0.0)
+            default = Inf
         "--timesteps", "-N"
-        help = "Number of time steps"
-        arg_type = typeof(0)
-        default = 1
+            help = "Number of time steps"
+            arg_type = typeof(0)
+            default = 1
         "--Vedge", "-V"
-        help = "Edge loop voltage boundary condition (Volts)"
-        arg_type = typeof(0.0)
+            help = "Edge loop voltage boundary condition (Volts)"
+            arg_type = typeof(0.0)
         "--Ip", "-I"
-        help = "Total plasma current boundary condition (Amps)"
-        arg_type = typeof(0.0)
-        """
-        --timeslice
-        """
-        help = "Time slice to use in JSON file"
-        arg_type = typeof(0)
-        default = 1
-        """
-        input_file
-        """
-        help = "Input JSON filename"
-        required = true
-        """
-        output_file
-        """
-        help = "Output JSON filename"
-        default = "qed_output.json"
-        required = false
+            help = "Total plasma current boundary condition (Amps)"
+            arg_type = typeof(0.0)
+        "--timeslice"
+            help = "Time slice to use in JSON file"
+            arg_type = typeof(0)
+            default = 1
+        "input_file"
+            help = "Input JSON filename"
+            required = true
+        "output_file"
+            help = "Output JSON filename"
+            default = "qed_output.json"
+            required = false
     end
 
     return parse_args(s)
@@ -79,7 +73,7 @@ function julia_main()::Cint
     println("  Outputting results to $(args["output_file"])")
 
     open(args["output_file"], "w") do f
-        return JSON.print(f, output, 1)
+        JSON.print(f, output, 1)
     end
 
     println("Exiting QED")
