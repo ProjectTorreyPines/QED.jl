@@ -1,6 +1,7 @@
 function parse_commandline()
     s = ArgParseSettings()
 
+#! format: off
     @add_arg_table! s begin
         "--tmax", "-T"
             help = "Maximum time to diffuse (seconds)"
@@ -28,7 +29,8 @@ function parse_commandline()
             default = "qed_output.json"
             required = false
     end
-
+#! format: on
+    
     return parse_args(s)
 end
 
@@ -73,7 +75,9 @@ function julia_main()::Cint
     println("  Outputting results to $(args["output_file"])")
 
     open(args["output_file"], "w") do f
+#! format: off
         JSON.print(f, output, 1)
+#! format: on
     end
 
     println("Exiting QED")
