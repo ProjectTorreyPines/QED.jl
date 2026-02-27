@@ -17,14 +17,12 @@ QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq) 
 
 @inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
 
-@inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε=1e-6)
+@inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε=1e-3)
     if r < ε
-        fε = fsa_∇ρ²_R²(QI, ε; ε)
-        f2ε = fsa_∇ρ²_R²(QI, 2 * ε; ε)
-        m = (f2ε - fε) / ε
-        return fε + m * (r - ε)  # Linearly extrapolate to
+        return max(fsa_∇ρ²_R²(QI, ε; ε), 1e-4)
     end
-    return QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
+    val = QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
+    return max(val, 1e-4)
 end
 
 @inline function D_fsa_∇ρ²_R²(QI::QED_state, x::Real)
