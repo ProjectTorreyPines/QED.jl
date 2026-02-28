@@ -19,7 +19,10 @@ QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq) 
 
 @inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε=1e-3)
     if r < ε
-        return max(fsa_∇ρ²_R²(QI, ε; ε), 1e-4)
+        fε = fsa_∇ρ²_R²(QI, ε; ε)
+        f2ε = fsa_∇ρ²_R²(QI, 2 * ε; ε)
+        m = (f2ε - fε) / ε
+        return max(fε + m * (r - ε), 1e-4)
     end
     val = QI.χ(r) / (QI.dV_dρ(r) * QI._ι_eq(r) * dΦ_dρ(QI, r))
     return max(val, 1e-4)
