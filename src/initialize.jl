@@ -81,11 +81,11 @@ Initialize the QED data structure from a JSON `filename` in IMAS format at reque
 from_imas(filename::String, timeslice=1) = from_imas(JSON.parsefile(filename), timeslice)
 
 """
-    from_imas(data::Dict, timeslice=1)
+    from_imas(data::AbstractDict, timeslice=1)
 
 Initialize the QED data structure from a dictionary `data` in IMAS format at requested `timeslice`
 """
-function from_imas(data::Dict, timeslice=1)
+function from_imas(data::AbstractDict, timeslice=1)
 
     eqt = data["equilibrium"]["time_slice"][timeslice]
     rho_tor = Float64.(eqt["profiles_1d"]["rho_tor"])
@@ -190,12 +190,12 @@ Return an interpolation of the resistivity from an IMAS-like JSON file `filename
 η_imas(filename::String, timeslice::Integer=1; use_log::Bool=true) = η_imas(JSON.parsefile(filename), timeslice; use_log)
 
 """
-    η_imas(data::Dict, timeslice::Integer=1; use_log::Bool=true)
+    η_imas(data::AbstractDict, timeslice::Integer=1; use_log::Bool=true)
 
 Return an interpolation of the resistivity from an IMAS-like dictionary `data` at `timeslice`
 `use_log=true` (default) interpolates on the log of the resistivity
 """
-function η_imas(data::Dict, timeslice::Integer=1; use_log::Bool=true)
+function η_imas(data::AbstractDict, timeslice::Integer=1; use_log::Bool=true)
     prof1d = data["core_profiles"]["profiles_1d"][timeslice]
     rho = Float64.(prof1d["grid"]["rho_tor_norm"])
     η = 1.0 ./ Float64.(prof1d["conductivity_parallel"])
