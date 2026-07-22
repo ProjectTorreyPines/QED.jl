@@ -210,3 +210,92 @@ end
 
     @test isapprox(JB(QI_ss), JBni.(ρ), rtol=1e-2)
 end
+
+@testset "Waveform" begin
+
+    @testset "constant" begin
+        W = QED.Waveform(3.5)
+        @test W isa QED.Waveform{Float64}
+        @test W(0.0) == 3.5
+        @test W(-1e6) == 3.5
+        @test W(1e6) == 3.5
+    end
+
+    @testset "interpolates knots exactly" begin
+        ts = collect(range(0.0, 100.0, 21))
+        vs = @. 1.0e3 * (1.0 - exp(-ts / 20.0)) * cos(ts / 30.0)
+        W = QED.Waveform(ts, vs)
+        @test maximum(abs, [W(t) - v for (t, v) in zip(ts, vs)]) < 1e-9 * maximum(abs, vs)
+    end
+
+    @testset "non-uniform grid" begin
+        ts = [0.0, 0.5, 3.0, 3.1, 8.0, 20.0]
+        vs = [1.0, -2.0, 0.5, 0.6, -3.0, 4.0]
+        W = QED.Waveform(ts, vs)
+        @test maximum(abs, [W(t) - v for (t, v) in zip(ts, vs)]) < 1e-9 * maximum(abs, vs)
+    end
+
+    # A natural cubic spline (S''= 0 at both ends) reproduces linear data exactly, and
+    # `Extension` continues the boundary cubic, so extrapolation stays exactly linear too.
+    # This pins down both the boundary condition and the extrapolation rule analytically.
+    #
+    # Range note: the spline solve leaves ~1e-18 of roundoff in the cubic coefficients, and
+    # the extension amplifies it by (t - t_end)^3. Staying within a few multiples of the data
+    # span keeps that below 1e-9; at 100x the span it grows to ~1e-9 relative. That is inherent
+    # to a natural cubic, not to the backend (DataInterpolations shows the same magnitude).
+    @testset "linear data is exact, inside and outside" begin
+        a, b = -7.0, 0.35
+        ts = collect(range(0.0, 100.0, 11))
+        W = QED.Waveform(ts, @. a + b * ts)
+        for t in (-500.0, -1.0, 0.0, 17.3, 100.0, 250.0, 600.0)
+            @test isapprox(W(t), a + b * t; rtol=1e-9, atol=1e-8)
+        end
+    end
+
+    @testset "natural boundary condition" begin
+        ts = collect(range(0.0, 10.0, 11))
+        vs = sin.(ts)
+        W = QED.Waveform(ts, vs)
+        d2(t, h) = (W(t + h) - 2W(t) + W(t - h)) / h^2
+        h = 1e-3
+        @test abs(d2(ts[1], h)) < 1e-6
+        @test abs(d2(ts[end], h)) < 1e-6
+        # sanity: the spline is genuinely curved in between, so the check above has teeth
+        @test abs(d2(ts[6], h)) > 0.1
+    end
+
+    @testset "extension is not clamping" begin
+        ts = collect(range(0.0, 10.0, 11))
+        W = QED.Waveform(ts, sin.(ts))
+        @test W(-2.0) != W(ts[1])
+        @test W(12.0) != W(ts[end])
+        @test isfinite(W(-2.0)) && isfinite(W(12.0))
+    end
+
+    @testset "promotion and type stability" begin
+        ts = collect(range(0.0, 10.0, 11))
+        @test QED.Waveform(ts, collect(1:11)) isa QED.Waveform{Float64}
+        @test QED.Waveform(collect(0:10), sin.(0:10)) isa QED.Waveform{Float64}
+        W = QED.Waveform(ts, sin.(ts))
+        @test (@inferred W(1.5)) isa Float64
+    end
+
+    @testset "drives QED_build voltages" begin
+        Nc = 4
+        ts = collect(range(0.0, 10.0, 11))
+        waveforms = [QED.Waveform(ts, @. 1.0e3 * sin(ts / 3 + k)) for k in 1:Nc]
+        Ic = zeros(Nc)
+        Vc = zeros(Nc)
+        Rc = fill(1e-3, Nc)
+        Mcc = [i == j ? 1.0e-5 : 2.0e-6 for i in 1:Nc, j in 1:Nc]  # diagonally dominant, invertible
+        build = QED.QED_build(Ic, Vc, Rc, Mcc, waveforms)
+
+        QED.update_voltages!(build, 4.2)
+        @test build.Vc ≈ [w(4.2) for w in waveforms]
+
+        # coil-circuit evolution runs and conserves nothing exotic, just stays finite
+        Is = QED.evolve!(build, 10.0, 100)
+        @test size(Is) == (Nc, 101)
+        @test all(isfinite, Is)
+    end
+end
