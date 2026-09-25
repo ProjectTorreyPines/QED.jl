@@ -135,6 +135,10 @@ gm9 = eqt["profiles_1d"]["gm9"]
 Keyword arguments:
 `ρ_j_non_inductive` - a tuple giving a grid and the noninductive current
                     e.g., `ρ_j_non_inductive = (prof1d["grid"]["rho_tor_norm"], prof1d["j_non_inductive"])`
+`ρ_j_tor` - an optional tuple giving the native normalized-rho grid and
+             `<Jt/R>` values. Use this when the current profile is defined on
+             a grid different from the equilibrium geometry grid; the values
+             are not first resampled onto `rho_tor`.
 `ρ_grid` - The grid for QED to operate on. By default, it uses normalized `rho_tor`
 """
 function initialize(rho_tor::AbstractVector{<:Real},
@@ -146,6 +150,7 @@ function initialize(rho_tor::AbstractVector{<:Real},
                     j_tor::AbstractVector{<:Real},
                     gm9::AbstractVector{<:Real};
                     ρ_j_non_inductive::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
+                    ρ_j_tor::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
                     ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing,
                     Ip0::Union{Nothing,Real}=nothing)
 
@@ -163,7 +168,14 @@ function initialize(rho_tor::AbstractVector{<:Real},
     tmp[1] = 0.0
     dV_dρ = FE(ρ, tmp)
 
-    JtoR = FE(ρ, j_tor .* gm9)
+    JtoR = if ρ_j_tor === nothing
+        FE(ρ, j_tor .* gm9)
+    else
+        current_rho, current_values = ρ_j_tor
+        length(current_rho) == length(current_values) ||
+            throw(DimensionMismatch("ρ_j_tor grid and values must have the same length"))
+        FE(current_rho, current_values)
+    end
 
     if ρ_j_non_inductive === nothing
         JBni = nothing
