@@ -6,7 +6,10 @@ import IMAS.IMASutils: argmin_abs
 """
     initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from) where {D<:Real,P<:Real}
 
-Setup QED from data in IMAS `dd`
+Setup QED from data in IMAS `dd`. The core-profile path preserves both
+`j_tor` and an explicitly supplied `j_total` on their native grid.
+Without a supplied parallel current, retain the geometry-derivative
+reconstruction used by the array initializer.
 """
 function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
                         uniform_rho::Int=length(dd.core_profiles.profiles_1d[].grid.rho_tor_norm),
@@ -23,12 +26,18 @@ function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
     q = eqt.profiles_1d.q
     gm9 = eqt.profiles_1d.gm9
 
-    # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
-    # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
+    # The core-profile current is the default source used by the equilibrium solver.
+    ρ_j_tor = nothing
+    ρ_j_parallel = nothing
     if j_tor_from === :equilibrium
         j_tor = eqt.profiles_1d.j_tor
     elseif j_tor_from === :core_profiles
-        j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+        j_tor = cp1d.j_tor
+        gm9_on_current_grid = IMAS.interp1d(IMAS.norm01(rho_tor), gm9, :cubic).(cp1d.grid.rho_tor_norm)
+        ρ_j_tor = (cp1d.grid.rho_tor_norm, cp1d.j_tor .* gm9_on_current_grid)
+        if IMAS.hasdata(cp1d, :j_total)
+            ρ_j_parallel = (cp1d.grid.rho_tor_norm, cp1d.j_total)
+        end
     else
         error("j_tor_from must be :equilibrium or :core_profiles")
     end
@@ -60,7 +69,7 @@ function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
 
     ρ_grid = collect(range(0.0, 1.0, uniform_rho))
 
-    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid, Ip0)
+    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_j_tor, ρ_j_parallel, ρ_grid, Ip0)
 end
 
 """
