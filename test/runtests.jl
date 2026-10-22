@@ -210,3 +210,24 @@ end
 
     @test isapprox(JB(QI_ss), JBni.(ρ), rtol=1e-2)
 end
+
+@testset "native-current-grid" begin
+    file_0 = joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "ods_163303Z26-3000.json")
+    data = JSON.parsefile(file_0)
+    eq = data["equilibrium"]["time_slice"][1]["profiles_1d"]
+    rho_tor = Float64.(eq["rho_tor"])
+    native_rho = collect(range(0.0, 1.0; length=37))
+    native_jtor_over_r = 2.0e6 .* (1 .- native_rho .^ 2)
+    QI = initialize(
+        rho_tor,
+        data["equilibrium"]["vacuum_toroidal_field"]["b0"][1],
+        Float64.(eq["gm1"]), Float64.(eq["f"]), Float64.(eq["dvolume_drho_tor"]), Float64.(eq["q"]),
+        Float64.(eq["j_tor"]), Float64.(eq["gm9"]);
+        ρ_j_tor=(native_rho, native_jtor_over_r), ρ_grid=native_rho)
+
+    for index in (2, 13, 31)
+        @test QI.JtoR(native_rho[index]) ≈ native_jtor_over_r[index]
+    end
+end
+
+include("imas_ext.jl")
