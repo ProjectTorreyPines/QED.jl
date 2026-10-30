@@ -2,7 +2,7 @@ module QED
 
 using FiniteElementHermite
 using BandedMatrices
-import DataInterpolations: DataInterpolations, ExtrapolationType
+import FastInterpolations
 import ForwardDiff
 import JSON
 using ArgParse

@@ -14,7 +14,9 @@ end
 # Interpolated waveform
 function Waveform(ts::AbstractVector{T}, values::AbstractVector{S}) where {T<:Real, S<:Real}
     TS = promote_type(T, S)
-    fitp = DataInterpolations.CubicSpline(values, ts; extrapolation=ExtrapolationType.Extension)
+    # natural cubic (S''=0 at the ends), boundary cubic extended past the time range
+    fitp = FastInterpolations.cubic_interp(ts, values;
+        bc=FastInterpolations.ZeroCurvBC(), extrap=FastInterpolations.ExtendExtrap())
     return Waveform{TS}(t -> fitp(t))
 end
 
