@@ -40,15 +40,8 @@ end
 end
 
 function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing, Ip0=nothing, JB_reference=nothing,
+    reference_tol::Union{Nothing,Real}=0.25,
     x=1.0 .- (1.0 .- range(0, 1; length=length(ρ))) .^ 2)
-
-    if JB_reference !== nothing
-        # Match the regularity condition imposed by every implicit stage.
-        # Otherwise even an infinitesimal step projects the first Hermite
-        # derivative and changes the axis current through the mass matrix.
-        ι = deepcopy(ι)
-        ι.coeffs[1] = 0.0
-    end
 
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
     # where dΨ_dρ = ι * dΦ_dρ
@@ -60,7 +53,34 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
     C[1:2:end] .= ξ.(x)         # derivative of χ is value of ξ
     χ = FE_rep(x, C)
 
-    reference = JB_reference === nothing ? nothing : CurrentReference(JtoR, JB_reference)
+    reference = nothing
+    if JB_reference !== nothing
+        # Match the regularity condition imposed by every implicit stage.
+        # Otherwise even an infinitesimal step projects the first Hermite
+        # derivative and changes the axis current through the mass matrix.
+        ι_reg = deepcopy(ι)
+        ι_reg.coeffs[1] = 0.0
+
+        # The reference operator assumes the supplied <J⋅B> is consistent with
+        # the equilibrium transform. If it is far from the geometry-derivative
+        # reconstruction, the reference would carry that error into every
+        # later step, so fall back to the geometry-derivative path instead.
+        mismatch = if reference_tol === nothing
+            zero(eltype(ρ))
+        else
+            Q_geometry = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι_reg, JtoR, χ, JBni, ι_reg)
+            JB_geometry = JB(Q_geometry)
+            maximum(abs.(JB_reference.(ρ) .- JB_geometry)) / maximum(abs.(JB_geometry))
+        end
+        @debug "QED parallel-current reference mismatch" mismatch reference_tol
+        if reference_tol === nothing || mismatch <= reference_tol
+            ι = ι_reg
+            reference = CurrentReference(JtoR, JB_reference)
+        else
+            @warn "QED: supplied parallel current differs from the equilibrium reconstruction by $(round(100 * mismatch; digits=1))% (tolerance $(round(100 * reference_tol; digits=1))%); ignoring it and using the geometry-derivative reconstruction"
+        end
+    end
+
     Q = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι; current_reference=reference)
 
     # Scale the last value of χ to match the desired Ip0
@@ -162,6 +182,10 @@ Keyword arguments:
                  defines the reference currents used by both reconstruction
                  and the diffusion operator. Without it the original
                  geometry-derivative reconstruction is retained.
+`reference_tol` - maximum relative difference (max-norm, relative to the peak)
+                  allowed between `ρ_j_parallel` and the `<J⋅B>` reconstructed
+                  from the equilibrium `q`. Beyond it, `ρ_j_parallel` is ignored
+                  with a warning. `nothing` disables the check.
 `ρ_grid` - The grid for QED to operate on. By default, it uses normalized `rho_tor`
 """
 function initialize(rho_tor::AbstractVector{<:Real},
@@ -176,7 +200,8 @@ function initialize(rho_tor::AbstractVector{<:Real},
                     ρ_j_tor::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
                     ρ_j_parallel::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
                     ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing,
-                    Ip0::Union{Nothing,Real}=nothing)
+                    Ip0::Union{Nothing,Real}=nothing,
+                    reference_tol::Union{Nothing,Real}=0.25)
 
     dΡ_dρ = rho_tor[end]
 
@@ -219,10 +244,10 @@ function initialize(rho_tor::AbstractVector{<:Real},
 
     if ρ_grid !== nothing
         ι = FE(ρ_grid, (ρ, 1.0 ./ q))
-        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0, JB_reference)
+        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0, JB_reference, reference_tol)
     else
         ι = FE(ρ, 1.0 ./ q)
-        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0, JB_reference)
+        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0, JB_reference, reference_tol)
     end
 end
 

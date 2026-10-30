@@ -4,7 +4,7 @@ import QED, IMAS
 import IMAS.IMASutils: argmin_abs
 
 """
-    initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from) where {D<:Real,P<:Real}
+    initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from, reference_tol::Union{Nothing,Real}=0.25) where {D<:Real,P<:Real}
 
 Setup QED from data in IMAS `dd`. The core-profile path preserves both
 `j_tor` and an explicitly supplied `j_total` on their native grid.
@@ -13,7 +13,8 @@ reconstruction used by the array initializer.
 """
 function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
                         uniform_rho::Int=length(dd.core_profiles.profiles_1d[].grid.rho_tor_norm),
-                        j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
+                        j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from,
+                        reference_tol::Union{Nothing,Real}=0.25)
 
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
@@ -69,7 +70,7 @@ function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
 
     ρ_grid = collect(range(0.0, 1.0, uniform_rho))
 
-    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_j_tor, ρ_j_parallel, ρ_grid, Ip0)
+    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_j_tor, ρ_j_parallel, ρ_grid, Ip0, reference_tol)
 end
 
 """
