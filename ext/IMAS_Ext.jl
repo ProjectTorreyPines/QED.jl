@@ -58,7 +58,8 @@ function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, j_non_inductive)
     end
 
-    ρ_grid = collect(range(0.0, 1.0, uniform_rho))
+    # the grid is in the number type of the dd, so that all finite-element representations share one type
+    ρ_grid = collect(range(zero(eltype(dd)), one(eltype(dd)), uniform_rho))
 
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid, Ip0)
 end

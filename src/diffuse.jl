@@ -8,7 +8,7 @@ using integration with requested order
 function define_T(QI::QED_state; order::Union{Nothing,Integer}=5)
     DΦ = x -> dΦ_dρ(QI, x)
     # Hermite cubics give septadiagonal matrix
-    T = BandedMatrix(Zeros(2length(QI.ρ), 2length(QI.ρ)), (3, 3))
+    T = BandedMatrix(Zeros{state_eltype(QI)}(2length(QI.ρ), 2length(QI.ρ)), (3, 3))
     define_T!(T, DΦ, QI.ρ, order)
     return T
 end
@@ -71,7 +71,7 @@ function define_Y(QI::QED_state, η; order::Union{Nothing,Integer}=5)
     adb_dρ(x) = αdβ_dρ(x, QI, η)
 
     # Hermite cubics give septadiagonal matrix
-    Y = BandedMatrix(Zeros(2length(QI.ρ), 2length(QI.ρ)), (3, 3))
+    Y = BandedMatrix(Zeros{promote_type(state_eltype(QI), typeof(ab(0.5)))}(2length(QI.ρ), 2length(QI.ρ)), (3, 3))
 
     define_Y!(Y, ab, adb_dρ, QI.ρ, order)
 
@@ -130,7 +130,7 @@ function define_Sni(QI::QED_state, η::F; order::Union{Nothing,Integer}=5) where
 
     V = x -> Vni(QI, η, x)
 
-    Sni = zeros(2N)
+    Sni = zeros(promote_type(state_eltype(QI), typeof(V(0.5))), 2N)
     Threads.@threads for m in 1:N
         Sni[2m-1] = inner_product(V, D_νo, m, ρ, order)
         Sni[2m] = inner_product(V, D_νe, m, ρ, order)
@@ -223,8 +223,14 @@ function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y
     btmp = zero(c)
 
     # Create linear problem and solver
-    prob = LinearSolve.LinearProblem(A, b)
-    linsolve = LinearSolve.init(prob)
+    # (for number types other than hardware floats, e.g. dual numbers, a dense LU factorisation computed once)
+    hardware_floats = eltype(A) <: Union{Float32,Float64} && eltype(b) <: Union{Float32,Float64}
+    if hardware_floats
+        prob = LinearSolve.LinearProblem(A, b)
+        linsolve = LinearSolve.init(prob)
+    else
+        A_factorized = lu(Matrix(A))
+    end
 
     # We advance c, the coefficients of ι,
     #   but we never actually need ι until the end (except for debugging)
@@ -264,9 +270,13 @@ function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y
             end
         end
 
-        linsolve.b .= b
-        sol = LinearSolve.solve!(linsolve)
-        c .= sol.u
+        if hardware_floats
+            linsolve.b .= b
+            sol = LinearSolve.solve!(linsolve)
+            c .= sol.u
+        else
+            c .= A_factorized \ b
+        end
 
         if debug && ((mod(n, Np) == 0) || (n == Nt))
             np += 1

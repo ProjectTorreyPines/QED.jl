@@ -15,6 +15,9 @@ end
 
 QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq) = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq, nothing)
 
+# number type of the profiles of a QED_state (Float64, or e.g. dual numbers)
+state_eltype(QI::QED_state) = promote_type(Float64, eltype(QI.ι.coeffs), eltype(QI.F.coeffs), eltype(QI.dV_dρ.coeffs), typeof(QI.B₀), typeof(QI.dΡ_dρ))
+
 @inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
 
 @inline function fsa_∇ρ²_R²(QI::QED_state, r::Real; ε=1e-3)
@@ -39,8 +42,9 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
     # where dΨ_dρ = ι * dΦ_dρ
     # Then dχ/dρ = ξ
     # Solve for χ by integrating ξ, noting that χ=0 at ρ=0
+    x = convert(Vector{promote_type(eltype(x), eltype(ρ))}, x) # grid in the number type of the profiles
     ξ = FE(x, 2π * μ₀ * dV_dρ.(x) .* JtoR.(x))
-    C = zeros(2 * length(x))
+    C = zeros(typeof(ξ(x[1])), 2 * length(x))
     C[2:2:end] .= I.(Ref(ξ), x) # value of χ is integral of ξ
     C[1:2:end] .= ξ.(x)         # derivative of χ is value of ξ
     χ = FE_rep(x, C)
