@@ -210,3 +210,4 @@ end
 
     @test isapprox(JB(QI_ss), JBni.(ρ), rtol=1e-2)
 end
+include("runtests_dual.jl")
