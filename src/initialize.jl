@@ -1,3 +1,8 @@
+struct CurrentReference{S<:FE_rep}
+    JtoR::S
+    JB::S
+end
+
 mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep,B<:Union{Nothing, QED_build}}
     ρ::U
     dΡ_dρ::T
@@ -11,9 +16,11 @@ mutable struct QED_state{U<:AbstractVector{<:Real},T<:Real,S<:FE_rep,B<:Union{No
     JBni::Union{Nothing,S}
     _ι_eq::S
     build::B
+    current_reference::Union{Nothing,CurrentReference{S}}
 end
 
-QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq) = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq, nothing)
+QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq; current_reference=nothing) =
+    QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, _ι_eq, nothing, current_reference)
 
 @inline dΦ_dρ(QI::QED_state, x::Real) = 2π * QI.B₀ * QI.dΡ_dρ^2 * x
 
@@ -32,8 +39,16 @@ end
     return ForwardDiff.derivative(r -> fsa_∇ρ²_R²(QI, r), x)
 end
 
-function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing, Ip0=nothing,
+function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=nothing, Ip0=nothing, JB_reference=nothing,
     x=1.0 .- (1.0 .- range(0, 1; length=length(ρ))) .^ 2)
+
+    if JB_reference !== nothing
+        # Match the regularity condition imposed by every implicit stage.
+        # Otherwise even an infinitesimal step projects the first Hermite
+        # derivative and changes the axis current through the mass matrix.
+        ι = deepcopy(ι)
+        ι.coeffs[1] = 0.0
+    end
 
     # If ξ = 2π*μ₀ * dV_dρ * <Jt/R> and χ = dV_dρ * dΨ_dρ * <|∇ρ|²/R²>
     # where dΨ_dρ = ι * dΦ_dρ
@@ -45,7 +60,8 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
     C[1:2:end] .= ξ.(x)         # derivative of χ is value of ξ
     χ = FE_rep(x, C)
 
-    Q = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι)
+    reference = JB_reference === nothing ? nothing : CurrentReference(JtoR, JB_reference)
+    Q = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι; current_reference=reference)
 
     # Scale the last value of χ to match the desired Ip0
     # Can modify the value in C directly
@@ -61,7 +77,8 @@ function QED_state(QI::QED_state, ι, JtoR)
     ι isa AbstractVector && (ι = FE(QI.ρ, ι))
     JtoR isa AbstractVector && (JtoR = FE(QI.ρ, JtoR))
 
-    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.χ, QI.JBni, QI._ι_eq)
+    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, ι, JtoR, QI.χ, QI.JBni, QI._ι_eq;
+                     current_reference=QI.current_reference)
 end
 
 function QED_state(QI::QED_state; JBni=nothing)
@@ -70,7 +87,8 @@ function QED_state(QI::QED_state; JBni=nothing)
     elseif JBni !== nothing
         JBni = FE(QI.ρ, JBni.(QI.ρ))
     end
-    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.χ, JBni, QI._ι_eq)
+    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.χ, JBni, QI._ι_eq;
+                     current_reference=QI.current_reference)
 end
 
 """
@@ -135,6 +153,15 @@ gm9 = eqt["profiles_1d"]["gm9"]
 Keyword arguments:
 `ρ_j_non_inductive` - a tuple giving a grid and the noninductive current
                     e.g., `ρ_j_non_inductive = (prof1d["grid"]["rho_tor_norm"], prof1d["j_non_inductive"])`
+`ρ_j_tor` - an optional tuple giving the native normalized-rho grid and
+             `<Jt/R>` values. Use this when the current profile is defined on
+             a grid different from the equilibrium geometry grid; the values
+             are not first resampled onto `rho_tor`.
+`ρ_j_parallel` - an optional native-grid equivalent parallel-current profile,
+                 with `<J⋅B> = B₀*j_parallel`. Together with `ρ_j_tor`, this
+                 defines the reference currents used by both reconstruction
+                 and the diffusion operator. Without it the original
+                 geometry-derivative reconstruction is retained.
 `ρ_grid` - The grid for QED to operate on. By default, it uses normalized `rho_tor`
 """
 function initialize(rho_tor::AbstractVector{<:Real},
@@ -146,6 +173,8 @@ function initialize(rho_tor::AbstractVector{<:Real},
                     j_tor::AbstractVector{<:Real},
                     gm9::AbstractVector{<:Real};
                     ρ_j_non_inductive::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
+                    ρ_j_tor::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
+                    ρ_j_parallel::Union{Nothing,Tuple{<:AbstractVector{<:Real},<:AbstractVector{<:Real}}}=nothing,
                     ρ_grid::Union{Nothing,AbstractVector{<:Real}}=nothing,
                     Ip0::Union{Nothing,Real}=nothing)
 
@@ -163,7 +192,23 @@ function initialize(rho_tor::AbstractVector{<:Real},
     tmp[1] = 0.0
     dV_dρ = FE(ρ, tmp)
 
-    JtoR = FE(ρ, j_tor .* gm9)
+    JtoR = if ρ_j_tor === nothing
+        FE(ρ, j_tor .* gm9)
+    else
+        current_rho, current_values = ρ_j_tor
+        length(current_rho) == length(current_values) ||
+            throw(DimensionMismatch("ρ_j_tor grid and values must have the same length"))
+        FE(current_rho, current_values)
+    end
+
+    JB_reference = if ρ_j_parallel === nothing
+        nothing
+    else
+        current_rho, current_values = ρ_j_parallel
+        length(current_rho) == length(current_values) ||
+            throw(DimensionMismatch("ρ_j_parallel grid and values must have the same length"))
+        FE(current_rho, current_values .* B₀)
+    end
 
     if ρ_j_non_inductive === nothing
         JBni = nothing
@@ -174,10 +219,10 @@ function initialize(rho_tor::AbstractVector{<:Real},
 
     if ρ_grid !== nothing
         ι = FE(ρ_grid, (ρ, 1.0 ./ q))
-        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0)
+        return QED_state(ρ_grid, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0, JB_reference)
     else
         ι = FE(ρ, 1.0 ./ q)
-        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0)
+        return QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni, Ip0, JB_reference)
     end
 end
 

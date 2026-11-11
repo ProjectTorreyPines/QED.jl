@@ -17,6 +17,13 @@ For a given QED_state `QI`, compute <Jt/R> on grid `ρ` with rotational transfor
 By default, use the grid and rotational transform in `QI` itself
 """
 function Jt_R!(J::AbstractVector{<:Real}, QI::QED_state; ι::FE_rep=QI.ι, ρ::AbstractVector{<:Real}=QI.ρ)
+    if QI.current_reference !== nothing
+        for k in eachindex(ρ)
+            ratio, change = current_change(QI, ι, ρ[k])
+            J[k] = ratio * QI.current_reference.JtoR(ρ[k]) + change
+        end
+        return J
+    end
     χ(x) = x * ι(x) * fsa_∇ρ²_R²(QI, x)
     dχ(x) = ForwardDiff.derivative(χ, x)
 
@@ -33,6 +40,19 @@ function Jt_R!(J::AbstractVector{<:Real}, QI::QED_state; ι::FE_rep=QI.ι, ρ::A
     return J
 end
 
+# Factor the current operator around the imported equilibrium transform.
+# In the continuous equations Jt/R = A*ι' + Bt*ι and J.B = F*A*ι' + Bp*ι.
+# Using the imported reference currents to recover Bt and Bp avoids
+# differentiating separately interpolated geometry to reconstruct them.
+@inline current_derivative_coefficient(QI::QED_state, x::Real) =
+    QI.B₀ * QI.dΡ_dρ^2 * x * fsa_∇ρ²_R²(QI, x) / μ₀
+
+@inline function current_change(QI::QED_state, ι, x::Real)
+    ratio = ι(x) / QI._ι_eq(x)
+    change = current_derivative_coefficient(QI, x) * (D(ι, x) - ratio * D(QI._ι_eq, x))
+    return ratio, change
+end
+
 """
     JB(QI::QED_state; ι=QI.ι, ρ::AbstractVector{<:Real}=QI.ρ)
 
@@ -40,6 +60,14 @@ For a given QED_state `QI`, return <J⋅B> on grid `ρ` with rotational transfor
 By default, use the grid and rotational transform in `QI` itself
 """
 function JB(QI::QED_state; ι=QI.ι, ρ::AbstractVector{<:Real}=QI.ρ)
+    if QI.current_reference !== nothing
+        current = zero(ρ)
+        for k in eachindex(ρ)
+            ratio, change = current_change(QI, ι, ρ[k])
+            current[k] = ratio * QI.current_reference.JB(ρ[k]) + QI.F(ρ[k]) * change
+        end
+        return current
+    end
     fsa_JB = QI.F.(ρ) .* Jt_R(QI; ι, ρ)
     return fsa_JB .- D.(Ref(QI.F), ρ) .* dΦ_dρ.(Ref(QI), ρ) .* fsa_∇ρ²_R².(Ref(QI), ρ) .* ι.(ρ) ./ (2π * μ₀)
 end

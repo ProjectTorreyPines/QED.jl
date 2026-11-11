@@ -51,6 +51,15 @@ end
 
 function αdβ_dρ(x::T, QI::QED_state, η) where {T<:Real}
 
+    if QI.current_reference !== nothing
+        # Use the same parallel-current operator as JB, including during
+        # steady-state and edge-loop-voltage solves. An output-only
+        # correction would leave the resistive evolution inconsistent.
+        coefficient = (QI.current_reference.JB(x) -
+                       QI.F(x) * current_derivative_coefficient(QI, x) * D(QI._ι_eq, x)) / QI._ι_eq(x)
+        return 2π * η(x) * coefficient / (QI.F(x) * QI.fsa_R⁻²(x))
+    end
+
     γ = (x==0.0) ? one(T) : x * (D(QI.dV_dρ, x) / QI.dV_dρ(x) - D(QI.F, x) / QI.F(x))
     abp = (1.0 + γ) * fsa_∇ρ²_R²(QI, x) + x * D_fsa_∇ρ²_R²(QI, x)
     return 2π * QI.B₀ * QI.dΡ_dρ^2 * η(x) * abp / (μ₀ * QI.fsa_R⁻²(x))
