@@ -63,6 +63,23 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
     reference = JB_reference === nothing ? nothing : CurrentReference(JtoR, JB_reference)
     Q = QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, χ, JBni, ι; current_reference=reference)
 
+    # The reference operator infers part of the resistive coefficient from the imported
+    # currents and the equilibrium transform. If the two are inconsistent (e.g. a coarse
+    # equilibrium q near the axis) that coefficient can change sign, turning diffusion
+    # into anti-diffusion and making the current grow exponentially. In that case fall
+    # back to the geometric operator for this state.
+    if reference !== nothing
+        ratio = current_reference_ratio(Q)
+        if !all(r -> isfinite(r) && r > 0, ratio)
+            imin = argmin(map(r -> isfinite(r) ? r : -Inf, ratio))
+            ρmin = ρ[ρ .> 0][imin]
+            @warn "QED: imported parallel current is inconsistent with the equilibrium transform " *
+                  "(reference/geometric resistive coefficient = $(ratio[imin]) at ρ = $(ρmin)). " *
+                  "Falling back to the geometric current operator."
+            Q.current_reference = nothing
+        end
+    end
+
     # Scale the last value of χ to match the desired Ip0
     # Can modify the value in C directly
     if Ip0 !== nothing

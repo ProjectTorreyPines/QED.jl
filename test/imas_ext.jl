@@ -98,6 +98,33 @@ end
     driven = QED.QED_state(initial; JBni=x -> 0.3B0*j)
     result = QED.steady_state(driven, eta; Vedge=0.7voltage)
     @test QED.JB(result; ρ=rho) ./ B0 ≈ fill(j, length(rho)) rtol=1e-8
+
+    # A consistent reference keeps the reference operator, which matches the geometric one.
+    @test initial.current_reference !== nothing
+    @test QED.current_reference_ratio(initial) ≈ ones(length(rho) - 1) rtol=1e-8
+end
+
+@testset "Inconsistent current reference falls back to geometric operator" begin
+    # Same cylinder, but the imported parallel current reverses sign near the axis,
+    # which is inconsistent with the flat transform. The reference operator would
+    # anti-diffuse there, so initialize must drop the reference (with a warning).
+    rho = collect(range(0.0, 1.0; length=41))
+    R0, B0, j = 3.0, 2.0, 1.0e6
+    iota = QED.μ₀ * R0 * j / (2B0)
+    j_parallel = j .* (1 .- 1.5 .* exp.(-(rho ./ 0.15) .^ 2))
+    args = (rho, B0, fill(1 / R0^2, length(rho)), fill(R0 * B0, length(rho)), 4π^2 * R0 .* rho,
+            fill(1 / iota, length(rho)), fill(j, length(rho)), fill(1 / R0, length(rho)))
+    state = @test_logs (:warn, r"inconsistent with the equilibrium transform") QED.initialize(args...;
+        ρ_j_tor=(rho, fill(j / R0, length(rho))), ρ_j_parallel=(rho, j_parallel))
+    @test state.current_reference === nothing
+    @test QED.current_reference_ratio(state) === nothing
+
+    # Without the fallback this diverges; with it the current stays bounded and on target.
+    target = π * j
+    eta(x) = 1.0e-8
+    result = QED.diffuse(state, eta, 0.1, 10; Ip=target)
+    @test all(isfinite, QED.JB(result; ρ=rho))
+    @test QED.Ip(result) ≈ target rtol=1e-8
 end
 
 @testset "Cylindrical current eigenmode decay" begin
