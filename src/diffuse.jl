@@ -49,11 +49,44 @@ function αβ(x::Real, QI::QED_state, η)
     return η(x) * dΦ_dρ(QI, x) * fsa_∇ρ²_R²(QI, x) / (μ₀ * QI.fsa_R⁻²(x))
 end
 
-function αdβ_dρ(x::T, QI::QED_state, η) where {T<:Real}
+function αdβ_dρ(x::Real, QI::QED_state, η)
+    if QI.current_reference !== nothing
+        # Use the same parallel-current operator as JB, including during
+        # steady-state and edge-loop-voltage solves. An output-only
+        # correction would leave the resistive evolution inconsistent.
+        return _αdβ_dρ_reference(x, QI, η)
+    end
+    return _αdβ_dρ_geometric(x, QI, η)
+end
 
+# Coefficient inferred from the imported reference currents (J⋅B = F*A*ι' + Bp*ι).
+function _αdβ_dρ_reference(x::Real, QI::QED_state, η)
+    coefficient = (QI.current_reference.JB(x) -
+                   QI.F(x) * current_derivative_coefficient(QI, x) * D(QI._ι_eq, x)) / QI._ι_eq(x)
+    return 2π * η(x) * coefficient / (QI.F(x) * QI.fsa_R⁻²(x))
+end
+
+# Coefficient from the equilibrium geometry alone.
+function _αdβ_dρ_geometric(x::T, QI::QED_state, η) where {T<:Real}
     γ = (x==0.0) ? one(T) : x * (D(QI.dV_dρ, x) / QI.dV_dρ(x) - D(QI.F, x) / QI.F(x))
     abp = (1.0 + γ) * fsa_∇ρ²_R²(QI, x) + x * D_fsa_∇ρ²_R²(QI, x)
     return 2π * QI.B₀ * QI.dΡ_dρ^2 * η(x) * abp / (μ₀ * QI.fsa_R⁻²(x))
+end
+
+"""
+    current_reference_ratio(QI::QED_state; ρ::AbstractVector{<:Real}=QI.ρ)
+
+Ratio of the resistive coefficient inferred from the imported reference currents to the
+one computed from the equilibrium geometry, evaluated on the points of `ρ` with `ρ > 0`.
+Resistivity cancels, so this only measures how consistent the imported `j_total` is with
+the equilibrium transform `ι`: ≈1 when consistent, while non-positive values mean the
+reference operator would anti-diffuse current (exponential growth in `diffuse`).
+Returns `nothing` if `QI` has no current reference.
+"""
+function current_reference_ratio(QI::QED_state; ρ::AbstractVector{<:Real}=QI.ρ)
+    QI.current_reference === nothing && return nothing
+    η = _ -> 1.0
+    return [_αdβ_dρ_reference(x, QI, η) / _αdβ_dρ_geometric(x, QI, η) for x in ρ if x > 0]
 end
 
 """
