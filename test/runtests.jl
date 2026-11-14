@@ -210,6 +210,7 @@ end
 
     @test isapprox(JB(QI_ss), JBni.(ρ), rtol=1e-2)
 end
+include("runtests_dual.jl")
 
 @testset "native-current-grid" begin
     file_0 = joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "ods_163303Z26-3000.json")

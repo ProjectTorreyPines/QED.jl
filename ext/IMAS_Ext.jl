@@ -67,7 +67,8 @@ function QED.initialize(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing;
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, j_non_inductive)
     end
 
-    ρ_grid = collect(range(0.0, 1.0, uniform_rho))
+    # the grid is in the number type of the dd, so that all finite-element representations share one type
+    ρ_grid = collect(range(zero(eltype(dd)), one(eltype(dd)), uniform_rho))
 
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_j_tor, ρ_j_parallel, ρ_grid, Ip0)
 end
@@ -107,7 +108,7 @@ returns
 
   - non-inductive profile with flattening of the current inside of the inversion radius
 """
-function QED.η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64;
+function QED.η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Real;
                              conductivity_parallel::Vector{T}=cp1d.conductivity_parallel, use_log::Bool=true) where {T<:Real}
     rho = cp1d.grid.rho_tor_norm
     η = 1.0 ./ conductivity_parallel
