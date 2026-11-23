@@ -93,6 +93,7 @@ end
         @test QED.JB(result; ρ=rho) ./ B0 ≈ fill(j, length(rho)) rtol=1e-8
         @test QED.Jt_R(result; ρ=rho) .* R0 ≈ fill(j, length(rho)) rtol=1e-8
         @test QED.Ip(result) ≈ target rtol=1e-8
+        @test result.current_reference !== nothing # consistent: the guard keeps the reference operator
     end
     # Non-inductive current enters the same loop-voltage balance.
     driven = QED.QED_state(initial; JBni=x -> 0.3B0*j)
@@ -127,6 +128,51 @@ end
     @test QED.Ip(result) ≈ target rtol=1e-8
 end
 
+@testset "Current reference ratio far from 1 falls back to geometric operator" begin
+    # A positive but large ratio (e.g. a reference polluted by an earlier bad solution) is
+    # as inconsistent as a negative one.
+    rho = collect(range(0.0, 1.0; length=41))
+    R0, B0, j = 3.0, 2.0, 1.0e6
+    iota = QED.μ₀ * R0 * j / (2B0)
+    args = (rho, B0, fill(1 / R0^2, length(rho)), fill(R0 * B0, length(rho)), 4π^2 * R0 .* rho,
+            fill(1 / iota, length(rho)), fill(j, length(rho)), fill(1 / R0, length(rho)))
+    state = @test_logs (:warn, r"inconsistent with the equilibrium transform") QED.initialize(args...;
+        ρ_j_tor=(rho, fill(j / R0, length(rho))), ρ_j_parallel=(rho, fill(100j, length(rho))))
+    @test state.current_reference === nothing
+end
+
+@testset "Diverging solution with the current reference is solved again with the geometric operator" begin
+    # QED inputs of a DIII-D 190904 FUSE time-dependent run at t=2.25 s: the equilibrium was
+    # stale (FRESCO not converging) and the imported j_total inconsistent with its q, but
+    # the reference/geometric coefficient ratio is within [0.79, 1.01] so initialize keeps
+    # the reference. Diffusing with it, ι on axis grows by ~60 orders of magnitude.
+    d = QED.JSON.parsefile(joinpath(dirname(dirname(abspath(@__FILE__))), "sample", "qed_190904_2250_inconsistent_reference.json"))
+    v(k) = Float64.(d[k])
+    rho = v("rho_tor_norm")
+    state = QED.initialize(v("rho_tor"), d["B0"], v("gm1"), v("f"), v("dvolume_drho_tor"), v("q"), v("j_tor_eq"), v("gm9");
+        ρ_j_tor=(rho, v("jtor_gm9")), ρ_j_parallel=(rho, v("j_total")),
+        ρ_grid=collect(range(0.0, 1.0, d["uniform_rho"])), Ip0=d["Ip0"])
+    state.JBni = QED.FE(rho, v("JBni"))
+    eta = QED.η_FE(rho, v("eta"))
+    @test state.current_reference !== nothing
+    @test all(r -> 0.1 <= r <= 10.0, QED.current_reference_ratio(state))
+    @test QED.current_reference_deviation(state) < QED.CURRENT_REFERENCE_MAX_DEVIATION
+
+    # the unguarded solve diverges
+    raw = QED._diffuse(state, eta, d["tmax"], d["Nt"], QED.define_T(state), QED.define_Y(state, eta); Ip=d["Ip"])
+    @test abs(raw.ι(0.0)) > 1e30
+    @test QED.current_reference_deviation(raw) > QED.CURRENT_REFERENCE_MAX_DEVIATION
+
+    # diffuse detects it and returns the geometric-operator solution
+    result = @test_logs (:warn, r"departs from the geometric current reconstruction") QED.diffuse(state, eta, d["tmax"], d["Nt"]; Ip=d["Ip"])
+    geometric = QED.diffuse(QED.without_current_reference(state), eta, d["tmax"], d["Nt"]; Ip=d["Ip"])
+    @test result.current_reference === nothing
+    @test result.ι.coeffs ≈ geometric.ι.coeffs
+    @test all(isfinite, QED.JB(result; ρ=rho))
+    @test maximum(abs, QED.JB(result; ρ=rho)) < 10 * maximum(abs, QED.JB(state; ρ=rho))
+    @test QED.Ip(result) ≈ d["Ip"] rtol=1e-8
+end
+
 @testset "Cylindrical current eigenmode decay" begin
     # Power series for J_0 and J_1, evaluated only for |x| <= 3.832.
     function bessel(n, x)
@@ -153,6 +199,7 @@ end
                                  4π^2*R0 .* rho, 1 ./ iota, current, fill(1/R0, n);
                                  ρ_j_tor=(rho, current ./ R0), ρ_j_parallel=(rho, current))
         result = QED.diffuse(initial, eta, duration, 2000; Ip=π*j0)
+        @test result.current_reference !== nothing
         # j_t = (eta/mu0) * (j'' + j'/rho) in a cylinder of unit minor radius.
         exact = j0 .* (1 .+ amplitude .* exp(-eta(0.0)/QED.μ₀*k^2*duration) .* bessel.(0, k .* rho))
         computed = QED.JB(result; ρ=rho) ./ B0
