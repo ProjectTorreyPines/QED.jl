@@ -89,6 +89,58 @@ function current_reference_ratio(QI::QED_state; ρ::AbstractVector{<:Real}=QI.ρ
     return [_αdβ_dρ_reference(x, QI, η) / _αdβ_dρ_geometric(x, QI, η) for x in ρ if x > 0]
 end
 
+# Bounds on `current_reference_ratio` for the reference operator to be used: outside of them
+# the imported currents and the equilibrium transform disagree by more than an order of magnitude
+const CURRENT_REFERENCE_RATIO_BOUNDS = (0.1, 10.0)
+
+# Largest tolerated `current_reference_deviation` of a solution obtained with the reference operator
+const CURRENT_REFERENCE_MAX_DEVIATION = 0.5
+
+"""
+    without_current_reference(QI::QED_state)
+
+Copy of `QI` that uses the geometric current operator (no imported current reference)
+"""
+function without_current_reference(QI::QED_state)
+    return QED_state(QI.ρ, QI.dΡ_dρ, QI.B₀, QI.fsa_R⁻², QI.F, QI.dV_dρ, QI.ι, QI.JtoR, QI.χ, QI.JBni, QI._ι_eq;
+                     current_reference=nothing)
+end
+
+"""
+    current_reference_deviation(QI::QED_state; ρ::AbstractVector{<:Real}=QI.ρ)
+
+Largest difference between `<J⋅B>` reconstructed with the imported current reference and with the
+equilibrium geometry alone, relative to the largest geometric `<J⋅B>`, on the points of `ρ`.
+The two agree to within the accuracy of the geometric reconstruction (≪1) when the state is
+consistent with the reference; `Inf` for a non-finite state. Returns `nothing` if `QI` has no
+current reference.
+"""
+function current_reference_deviation(QI::QED_state; ρ::AbstractVector{<:Real}=QI.ρ)
+    QI.current_reference === nothing && return nothing
+    all(isfinite, QI.ι.coeffs) || return Inf
+    JB_reference = JB(QI; ρ)
+    JB_geometric = JB(without_current_reference(QI); ρ)
+    scale = maximum(abs, JB_geometric)
+    (all(isfinite, JB_reference) && isfinite(scale) && scale > 0) || return Inf
+    return maximum(abs, JB_reference .- JB_geometric) / scale
+end
+
+# A solution obtained with the reference operator can still diverge when the imported currents
+# are inconsistent with the equilibrium transform in a way that `current_reference_ratio` does
+# not detect at initialization (observed: ι on axis growing by 60 orders of magnitude in a
+# single call while the ratio was within [0.79, 1.01]). The bad current would then be
+# written back and reused as the next reference. Detect this on the solution and redo the
+# solve with the geometric operator.
+function _guard_current_reference(solve::Function, QI::QED_state, result::QED_state, caller::String)
+    QI.current_reference === nothing && return result
+    deviation = current_reference_deviation(result)
+    deviation <= CURRENT_REFERENCE_MAX_DEVIATION && return result
+    @warn "QED $(caller): the solution obtained with the imported current reference departs from the geometric " *
+          "current reconstruction (relative <J⋅B> deviation = $(deviation)). " *
+          "Solving again with the geometric current operator."
+    return solve(without_current_reference(QI))
+end
+
 """
     define_Y(QI::QED_state, η; order::Union{Nothing,Integer}=5)
 
@@ -197,8 +249,8 @@ function diffuse(QI::QED_state, η, tmax::Real, Nt::Integer;
     Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing,
     debug::Bool=false, Np::Union{Nothing,Integer}=nothing)
     T = define_T(QI)
-    Y = define_Y(QI, η)
-    return _diffuse(QI, η, tmax, Nt, T, Y; θimp, Vedge, Ip, debug, Np)
+    solve(Q) = _diffuse(Q, η, tmax, Nt, T, define_Y(Q, η); θimp, Vedge, Ip, debug, Np)
+    return _guard_current_reference(solve, QI, solve(QI), "diffuse")
 end
 
 function _diffuse(QI::QED_state, η, tmax::Real, Nt::Integer, T::BandedMatrix, Y::BandedMatrix;
@@ -341,8 +393,8 @@ Keyword arguments
 """
 function steady_state(QI::QED_state, η; debug::Bool=false,
     Vedge::Union{Nothing,Real}=nothing, Ip::Union{Nothing,Real}=nothing)
-    Y = define_Y(QI, η)
-    return _steady_state(QI, η, Y; Vedge, Ip, debug)
+    solve(Q) = _steady_state(Q, η, define_Y(Q, η); Vedge, Ip, debug)
+    return _guard_current_reference(solve, QI, solve(QI), "steady_state")
 end
 
 function _steady_state(QI::QED_state, η, Y::BandedMatrix; debug::Bool=false,

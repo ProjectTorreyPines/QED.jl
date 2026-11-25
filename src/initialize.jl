@@ -70,16 +70,20 @@ function QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR; JBni=noth
     # The reference operator infers part of the resistive coefficient from the imported
     # currents and the equilibrium transform. If the two are inconsistent (e.g. a coarse
     # equilibrium q near the axis) that coefficient can change sign, turning diffusion
-    # into anti-diffusion and making the current grow exponentially. In that case fall
-    # back to the geometric operator for this state.
+    # into anti-diffusion and making the current grow exponentially. A positive ratio
+    # far from 1 (e.g. a reference polluted by an earlier bad solution) is just as
+    # inconsistent. In either case fall back to the geometric operator for this state.
     if reference !== nothing
         ratio = current_reference_ratio(Q)
-        if !all(r -> isfinite(r) && r > 0, ratio)
-            imin = argmin(map(r -> isfinite(r) ? r : -Inf, ratio))
-            ρmin = ρ[ρ .> 0][imin]
+        rlo, rhi = CURRENT_REFERENCE_RATIO_BOUNDS
+        inconsistent(r) = !(isfinite(r) && rlo <= r <= rhi)
+        if any(inconsistent, ratio)
+            # report the point farthest from consistency (on a log scale)
+            iworst = argmax(map(r -> inconsistent(r) ? (isfinite(r) && r > 0 ? abs(log(r)) : Inf) : -Inf, ratio))
+            ρworst = ρ[ρ .> 0][iworst]
             @warn "QED: imported parallel current is inconsistent with the equilibrium transform " *
-                  "(reference/geometric resistive coefficient = $(ratio[imin]) at ρ = $(ρmin)). " *
-                  "Falling back to the geometric current operator."
+                  "(reference/geometric resistive coefficient = $(ratio[iworst]) at ρ = $(ρworst), " *
+                  "outside of [$(rlo), $(rhi)]). Falling back to the geometric current operator."
             Q.current_reference = nothing
         end
     end
